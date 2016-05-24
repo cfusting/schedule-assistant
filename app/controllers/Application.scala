@@ -79,9 +79,9 @@ class Application @Inject() (ws: WSClient) extends Controller {
         "recipient" -> Json.obj("id" -> result),
         "message" -> Json.obj("text" -> "I know wassup!")
       )
-      val res: Future[WSResponse] = ws.url("https://graph.facebook.com/v2.6/me/messages")
-        .withQueryString("access_token" -> "EAAWOb6Mv7N4BAMtRoYHBaLBMZCyZAGDWmwFZCKr1KarrJUy3ZAHmkGd1OVAjUBdJzAwbYZAyiZCFYJqjWZBLyjvJILTjXhLz95q5lGdAe1NWUcKWSixKeCNumHEAZBZAkh1EWNOjOYiiGv1jiUZCttghM0ZCF4Ppv79MVZBjibuwmFQ6wQZDZD")
-        .post(dat)
+//      val res: Future[WSResponse] = ws.url("https://graph.facebook.com/v2.6/me/messages")
+//        .withQueryString("access_token" -> "EAAWOb6Mv7N4BAMtRoYHBaLBMZCyZAGDWmwFZCKr1KarrJUy3ZAHmkGd1OVAjUBdJzAwbYZAyiZCFYJqjWZBLyjvJILTjXhLz95q5lGdAe1NWUcKWSixKeCNumHEAZBZAkh1EWNOjOYiiGv1jiUZCttghM0ZCF4Ppv79MVZBjibuwmFQ6wQZDZD")
+//        .post(dat)
       Ok("")
   }
 
