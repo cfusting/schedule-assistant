@@ -25,4 +25,10 @@ class Application extends Controller {
       }
   }
 
+  def webhookPost = Action(parse.json) {
+    implicit request =>
+    Logger.error("request: " + request.body)
+    Ok("cats")
+  }
+
 }
