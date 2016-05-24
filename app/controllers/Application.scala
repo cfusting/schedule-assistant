@@ -74,14 +74,21 @@ class Application @Inject() (ws: WSClient) extends Controller {
     implicit request =>
       Logger.info("request: " + request.body)
       val json: JsValue = request.body
-      val result = (((json \ "entry")(0).get \ "messaging")(0).get \ "sender" \ "id").get
+      val userid = (((json \ "entry")(0).get \ "messaging")(0).get \ "sender" \ "id").get
       val dat = Json.obj(
-        "recipient" -> Json.obj("id" -> result),
+        "recipient" -> Json.obj("id" -> userid),
         "message" -> Json.obj("text" -> "I know wassup!")
       )
-//      val res: Future[WSResponse] = ws.url("https://graph.facebook.com/v2.6/me/messages")
-//        .withQueryString("access_token" -> "EAAWOb6Mv7N4BAMtRoYHBaLBMZCyZAGDWmwFZCKr1KarrJUy3ZAHmkGd1OVAjUBdJzAwbYZAyiZCFYJqjWZBLyjvJILTjXhLz95q5lGdAe1NWUcKWSixKeCNumHEAZBZAkh1EWNOjOYiiGv1jiUZCttghM0ZCF4Ppv79MVZBjibuwmFQ6wQZDZD")
-//        .post(dat)
+      val text = (((json \ "entry")(0).get \ "messaging")(0).get \ "message" \ "text").validate[String]
+      text match {
+         case s: JsSuccess[String] => {
+           Logger.info("Message Recieved: " + s.get)
+           val res: Future[WSResponse] = ws.url("https://graph.facebook.com/v2.6/me/messages")
+             .withQueryString("access_token" -> "EAAWOb6Mv7N4BAMtRoYHBaLBMZCyZAGDWmwFZCKr1KarrJUy3ZAHmkGd1OVAjUBdJzAwbYZAyiZCFYJqjWZBLyjvJILTjXhLz95q5lGdAe1NWUcKWSixKeCNumHEAZBZAkh1EWNOjOYiiGv1jiUZCttghM0ZCF4Ppv79MVZBjibuwmFQ6wQZDZD")
+             .post(dat)
+         }
+         case e: JsError => Logger.info("Response to sent message.")
+       }
       Ok("")
   }
 
