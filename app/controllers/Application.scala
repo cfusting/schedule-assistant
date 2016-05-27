@@ -13,7 +13,7 @@ import play.api.libs.ws.{WSClient, WSRequest, WSResponse}
 
 import scala.concurrent.Future
 
-class Application @Inject() (ws: WSClient) extends Controller {
+class Application @Inject() (ws: WSClient, conf: Configuration) extends Controller {
 
   def index = Action {
     Ok(views.html.index("Your new application is ready."))
@@ -84,7 +84,7 @@ class Application @Inject() (ws: WSClient) extends Controller {
          case s: JsSuccess[String] => {
            Logger.info("Message Recieved: " + s.get)
            val res: Future[WSResponse] = ws.url("https://graph.facebook.com/v2.6/me/messages")
-             .withQueryString("access_token" -> "EAAWOb6Mv7N4BAMtRoYHBaLBMZCyZAGDWmwFZCKr1KarrJUy3ZAHmkGd1OVAjUBdJzAwbYZAyiZCFYJqjWZBLyjvJILTjXhLz95q5lGdAe1NWUcKWSixKeCNumHEAZBZAkh1EWNOjOYiiGv1jiUZCttghM0ZCF4Ppv79MVZBjibuwmFQ6wQZDZD")
+             .withQueryString("access_token" -> conf.underlying.getString("thepenguin.token"))
              .post(dat)
          }
          case e: JsError => Logger.info("Response to sent message.")
