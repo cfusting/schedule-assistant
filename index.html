@@ -7,22 +7,21 @@
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
     <meta name="description" content="">
     <meta name="author" content="">
-    <link rel="icon" href="../../favicon.ico">
+    <link rel="icon" href="bs/fonts/favicon.ico">
 
-    <title>Cover Template for Bootstrap</title>
+    <title>Jumbotron Template for Bootstrap</title>
 
     <!-- Bootstrap core CSS -->
-    <link href="../../dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="bs/css/bootstrap.min.css" rel="stylesheet">
 
     <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
-    <link href="../../assets/css/ie10-viewport-bug-workaround.css" rel="stylesheet">
+    <link href="bs/fixes/ie10-viewport-bug-workaround.css" rel="stylesheet">
 
     <!-- Custom styles for this template -->
-    <link href="cover.css" rel="stylesheet">
+    <link href="css/jumbotron.css" rel="stylesheet">
 
-    <!-- Just for debugging purposes. Don't actually copy these 2 lines! -->
-    <!--[if lt IE 9]><script src="../../assets/js/ie8-responsive-file-warning.js"></script><![endif]-->
-    <script src="../../assets/js/ie-emulation-modes-warning.js"></script>
+    <!--Chat bubbles-->
+    <link href="css/speech.css" rel="stylesheet">
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
@@ -32,53 +31,77 @@
   </head>
 
   <body>
-
-    <div class="site-wrapper">
-
-      <div class="site-wrapper-inner">
-
-        <div class="cover-container">
-
-          <div class="masthead clearfix">
-            <div class="inner">
-              <h3 class="masthead-brand">Cover</h3>
-              <nav>
-                <ul class="nav masthead-nav">
-                  <li class="active"><a href="#">Home</a></li>
-                  <li><a href="#">Features</a></li>
-                  <li><a href="#">Contact</a></li>
-                </ul>
-              </nav>
-            </div>
+    <!-- Main jumbotron for a primary marketing message or call to action -->
+    <div class="jumbotron">
+      <div class="container">
+        <h1>Free. Your. Time</h1>
+        <p>Scheduler is your personal scheduling assistant. Your clients communicate with
+              scheduler using text messages and Scheduler updates your calendar with appointments.</p>
+      </div>
+    </div>
+     <div class="container-fluid chat">
+       <div class="row">
+         <div class="col-md-offset-3 col-md-3">
+           <div class="talk-bubble tri-right round border right-top">
+             <div class="talktext">
+                <p>Hi Marcy! I can help you schedule a tennis lesson with Britt. What day are you interested in?</p>
+             </div>
+           </div>
+         </div>
+       </div>
+        <div class="row">
+          <div class="col-md-offset-6 col-md-3">
+            <div class="talk-bubble tri-right round border left-top">
+             <div class="talktext">
+               <p>How about this Wednesday?</p>
+             </div>
+           </div>
           </div>
-
-          <div class="inner cover">
-            <h1 class="cover-heading">Cover your page.</h1>
-            <p class="lead">Cover is a one-page template for building simple and beautiful home pages. Download, edit the text, and add your own fullscreen background photo to make it your own.</p>
-            <p class="lead">
-              <a href="#" class="btn btn-lg btn-default">Learn more</a>
-            </p>
-          </div>
-
-          <div class="mastfoot">
-            <div class="inner">
-              <p>Cover template for <a href="http://getbootstrap.com">Bootstrap</a>, by <a href="https://twitter.com/mdo">@mdo</a>.</p>
-            </div>
-          </div>
-
         </div>
-
+        <div class="row">
+         <div class="col-md-offset-3 col-md-3">
+           <div class="talk-bubble tri-right round border right-top">
+             <div class="talktext">
+               <p>Ok. Britt has 11 am - 3 pm open. What time works for you?</p>
+             </div>
+           </div>
+         </div>
+       </div>
+          <div class="row">
+          <div class="col-md-offset-6 col-md-3">
+            <div class="talk-bubble tri-right round border left-top">
+             <div class="talktext">
+               <p>1 to 2 works.</p>
+             </div>
+           </div>
+          </div>
+        </div>
+          <div class="row">
+         <div class="col-md-offset-3 col-md-3">
+           <div class="talk-bubble tri-right round border right-top">
+             <div class="talktext">
+               <p>Great, I have you down at 1 pm this Wednesday for an hour.</p>
+             </div>
+           </div>
+         </div>
+       </div>
       </div>
 
-    </div>
+      <hr>
+
+      <footer>
+        <p>&copy; 2016 Ferret Labs, Inc.</p>
+      </footer>
+    </div> <!-- /container -->
+
 
     <!-- Bootstrap core JavaScript
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
     <script>window.jQuery || document.write('<script src="../../assets/js/vendor/jquery.min.js"><\/script>')</script>
-    <script src="../../dist/js/bootstrap.min.js"></script>
+    <script src="bs/js/bootstrap.min.js"></script>
     <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
-    <script src="../../assets/js/ie10-viewport-bug-workaround.js"></script>
+    <script src="bs/fixes/ie10-viewport-bug-workaround.js"></script>
   </body>
 </html>
