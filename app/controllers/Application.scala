@@ -34,19 +34,18 @@ class Application @Inject() (ws: WSClient, conf: Configuration) extends Controll
       }
   }
 
-//  case class FMessage(obj: String, entry: Seq[Entry])
-//  case class FMessage(obj: String)
-//  case class Entry(id: Double, time: Double, messaging: Seq[Messaging])
-//  case class Messaging(sender: Double, recipient: Double, message: Message, timestamp: Double)
+  case class FMessage(obj: String, entry: Seq[Entry])
+  case class Entry(id: String, time: Double, messaging: Seq[Messaging])
+  case class Messaging(sender: String, recipient: String, message: Message, timestamp: Double)
 //  case class Sender(id: Double)
 //  case class Recipient(id: Double)
-//  case class Message(mid: String, seq: Int, text: String)
+  case class Message(mid: String, seq: Int, text: String)
 
 //  implicit val fMessagereads: Reads[FMessage] = (
 //    (JsPath \ "object").read[String] and
 //      (JsPath \ "entry").read[Seq[Entry]]
 //    )(FMessage.apply _)
-
+//
 //  implicit val entryReads: Reads[Entry] = (
 //    (JsPath \ "id").read[Double] and
 //      (JsPath \ "time").read[Double] and
@@ -59,37 +58,71 @@ class Application @Inject() (ws: WSClient, conf: Configuration) extends Controll
 //      (JsPath \ "message").read[Message] and
 //      (JsPath \ "timestamp").read[Double]
 //    )(Messaging.apply _)
-
+//
 //  implicit val senderReads: Reads[Sender] = (JsPath \ "id").read[Sender]
-
+//
 //  implicit val recipientReads: Reads[Recipient] = (JsPath \ "id").read[Recipient]
-
+//
 //  implicit val messageReads: Reads[Message] = (
 //    (JsPath \ "mid").read[String] and
 //      (JsPath \ "seq").read[Int] and
 //      (JsPath \ "text").read[String]
 //    )(Message.apply _)
 
+      implicit val messageReads: Reads[Message] = (
+        (JsPath \ "mid").read[String] and
+          (JsPath \ "seq").read[Int] and
+          (JsPath \ "text").read[String]
+        )(Message.apply _)
+
+      implicit val messagingReads: Reads[Messaging] = (
+      (JsPath \ "sender" \ "id").read[String] and
+        (JsPath \ "recipient" \ "id").read[String] and
+        (JsPath \ "message").read[Message] and
+        (JsPath \ "timestamp").read[Double]
+      )(Messaging.apply _)
+
+      implicit val entryReads: Reads[Entry] = (
+      (JsPath \ "id").read[String] and
+        (JsPath \ "time").read[Double] and
+        (JsPath \ "messaging").read[Seq[Messaging]]
+      )(Entry.apply _)
+
+      implicit val fMessagereads: Reads[FMessage] = (
+      (JsPath \ "object").read[String] and
+        (JsPath \ "entry").read[Seq[Entry]]
+      )(FMessage.apply _)
+
   def webhookPost = Action(BodyParsers.parse.json) {
     implicit request =>
       Logger.info("request: " + request.body)
       val json: JsValue = request.body
-      val userid = (((json \ "entry")(0).get \ "messaging")(0).get \ "sender" \ "id").get
-      val dat = Json.obj(
-        "recipient" -> Json.obj("id" -> userid),
-        "message" -> Json.obj("text" -> "I know wassup!")
+      val fmessageResult = json.validate[FMessage]
+      fmessageResult.fold(
+        errors => {
+          Logger.error(errors.toString())
+          BadRequest("Bad request. Errors: " + errors)
+        },
+        fmessage => {
+          Ok("Good request.\n")
+        }
       )
-      val text = (((json \ "entry")(0).get \ "messaging")(0).get \ "message" \ "text").validate[String]
-      text match {
-         case s: JsSuccess[String] => {
-           Logger.info("Message Recieved: " + s.get)
-           val res: Future[WSResponse] = ws.url("https://graph.facebook.com/v2.6/me/messages")
-             .withQueryString("access_token" -> conf.underlying.getString("thepenguin.token"))
-             .post(dat)
-         }
-         case e: JsError => Logger.info("Response to sent message.")
-       }
-      Ok("")
+//      val userid = (((json \ "entry")(0).get \ "messaging")(0).get \ "sender" \ "id").get
+//      val dat = Json.obj(
+//        "recipient" -> Json.obj("id" -> userid),
+//        "message" -> Json.obj("text" -> "I know wassup!")
+//      )
+//      val text = (((json \ "entry")(0).get \ "messaging")(0).get \ "message" \ "text").validate[String]
+//      text match {
+//         case s: JsSuccess[String] => {
+//           Logger.info("Message Recieved: " + s.get)
+//           val res: Future[WSResponse] = ws.url("https://graph.facebook.com/v2.6/me/messages")
+//             .withQueryString("access_token" -> conf.underlying.getString("thepenguin.token"))
+//             .post(dat)
+//         }
+//         case e: JsError => Logger.info("Response to sent message.")
+//       }
+//      Ok("")
   }
 
 }
