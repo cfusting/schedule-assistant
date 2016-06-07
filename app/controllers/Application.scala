@@ -35,7 +35,7 @@ class Application @Inject() (ws: WSClient, conf: Configuration) extends Controll
   }
 
   case class FMessage(obj: String, entry: Seq[Entry])
-  case class Entry(id: Double, time: Double, messaging: Seq[Messaging])
+  case class Entry(id: String, time: Double, messaging: Seq[Messaging])
   case class Messaging(sender: String, recipient: String, message: Option[Message],
                        timestamp: Option[Double], delivery: Option[Delivery],
                        postback: Option[Postback])
@@ -79,7 +79,7 @@ class Application @Inject() (ws: WSClient, conf: Configuration) extends Controll
   )(unlift(Messaging.unapply _))
 
   implicit val entryWrites: Writes[Entry] = (
-  (JsPath \ "id").write[Double] and
+  (JsPath \ "id").write[String] and
     (JsPath \ "time").write[Double] and
     (JsPath \ "messaging").write[Seq[Messaging]]
   )(unlift(Entry.unapply _))
@@ -119,7 +119,7 @@ class Application @Inject() (ws: WSClient, conf: Configuration) extends Controll
   )(Messaging.apply _)
 
   implicit val entryReads: Reads[Entry] = (
-  (JsPath \ "id").read[Double] and
+  (JsPath \ "id").read[String] and
     (JsPath \ "time").read[Double] and
     (JsPath \ "messaging").read[Seq[Messaging]]
   )(Entry.apply _)
@@ -144,6 +144,15 @@ class Application @Inject() (ws: WSClient, conf: Configuration) extends Controll
             entry =>
              entry.messaging.foreach(
                messaging => {
+                 messaging.delivery match {
+                   case Some(x) => {
+                     // Delivery Confirmation
+                    Ok("Delivery verified.")
+                   }
+                   case None => {
+
+                   }
+                 }
                  messaging.message match {
                    case Some(x) => {
                      // Message
@@ -172,10 +181,16 @@ class Application @Inject() (ws: WSClient, conf: Configuration) extends Controll
                    case Some(x) => {
                     // Postback
                     Logger.info("Postback")
-                     Logger.info(genDayOptions(messaging.sender).toString())
-                    val res: Future[WSResponse] = ws.url("https://graph.facebook.com/v2.6/me/messages")
-                      .withQueryString("access_token" -> conf.underlying.getString("thepenguin.token"))
-                      .post(genDayOptions(messaging.sender))
+                     x.payload match {
+                       case "schedule" => {
+                         val res: Future[WSResponse] = ws.url("https://graph.facebook.com/v2.6/me/messages")
+                           .withQueryString("access_token" -> conf.underlying.getString("thepenguin.token"))
+                           .post(genDayOptions(messaging.sender))
+                       }
+                       case "tom" =>
+                       case "dayafter" =>
+                       case "afterthat" =>
+                     }
                    }
                    case None => {
                      // No Postback
