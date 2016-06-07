@@ -187,9 +187,16 @@ class Application @Inject() (ws: WSClient, conf: Configuration) extends Controll
                            .withQueryString("access_token" -> conf.underlying.getString("thepenguin.token"))
                            .post(genDayOptions(messaging.sender))
                        }
-                       case "tom" =>
-                       case "dayafter" =>
-                       case "afterthat" =>
+                       case "tom" | "dayafter" | "afterthat"  => {
+                         val res: Future[WSResponse] = ws.url("https://graph.facebook.com/v2.6/me/messages")
+                           .withQueryString("access_token" -> conf.underlying.getString("thepenguin.token"))
+                           .post(genTimeOptions(messaging.sender))
+                       }
+                       case "1pm" | "2pm" | "3pm" => {
+                         val res: Future[WSResponse] = ws.url("https://graph.facebook.com/v2.6/me/messages")
+                           .withQueryString("access_token" -> conf.underlying.getString("thepenguin.token"))
+                           .post(confirmSchedule(messaging.sender))
+                       }
                      }
                    }
                    case None => {
@@ -208,8 +215,15 @@ class Application @Inject() (ws: WSClient, conf: Configuration) extends Controll
   case class Recipient(id: String)
   case class Payload(template_type: String, text: String, buttons: Seq[Button])
   case class Button(typ: String, url: Option[String], title: Option[String], payload: Option[String])
-  case class OutMessage(attachment: OutAttachment)
+  case class OutMessage(attachment: Option[OutAttachment], text: Option[TextMessage])
+  case class TextMessage(text: String)
   case class OutAttachment(typ: String, payload: Payload)
+
+  implicit val textMessageWrites = new Writes[TextMessage] {
+    def writes(textMessage: TextMessage) = Json.obj(
+      "text" -> textMessage.text
+    )
+  }
 
   implicit val recipientWrites = new Writes[Recipient] {
     def writes(recipient: Recipient) = Json.obj(
@@ -235,11 +249,10 @@ class Application @Inject() (ws: WSClient, conf: Configuration) extends Controll
       (JsPath \ "payload").write[Payload]
     )(unlift(OutAttachment.unapply _))
 
-  implicit val outMessageWrites = new Writes[OutMessage] {
-    def writes(outMessage: OutMessage) = Json.obj(
-      "attachment" -> outMessage.attachment
-    )
-  }
+  implicit val outMessageWrites: Writes[OutMessage] = (
+    (JsPath \ "attachment").writeNullable[OutAttachment] and
+      (JsPath \ "text").writeNullable[TextMessage]
+    )(unlift(OutMessage.unapply _))
 
   implicit val outgoingWrites: Writes[Outgoing] = (
     (JsPath \ "recipient").write[Recipient] and
@@ -250,20 +263,43 @@ class Application @Inject() (ws: WSClient, conf: Configuration) extends Controll
     val dayOptions = Outgoing(
       Recipient(userid),
       OutMessage(
-        OutAttachment(
+        Some(OutAttachment(
           "template",
           Payload("button", "What day would you like?", List(
             Button("postback", None, Some("Tomorrow"), Some("tom")),
               Button("postback", None, Some("The day after Tomorrow"), Some("dayafter")),
               Button("postback", None, Some("The day after that"), Some("afterthat"))
-//              Button("postback", None, Some("Thursday"), Some("thur"))
-//              Button("postback", None, Some("Friday"), Some("fri")),
-//              Button("postback", None, Some("Saturday"), Some("sat")),
-//              Button("postback", None, Some("Sunday"), Some("sun"))
           ))
-        )
+        )), None
       )
     )
     Json.toJson(dayOptions)
+  }
+
+  def genTimeOptions(userid: String): JsValue = {
+    val timeOptions = Outgoing(
+      Recipient(userid),
+      OutMessage(
+        Some(OutAttachment(
+          "template",
+          Payload("button", "What time?", List(
+            Button("postback", None, Some("1 pm"), Some("1pm")),
+              Button("postback", None, Some("2 pm"), Some("2pm")),
+              Button("postback", None, Some("3 pm"), Some("3pm"))
+          ))
+        )), None
+      )
+    )
+    Json.toJson(timeOptions)
+  }
+
+  def confirmSchedule(userid: String): JsValue = {
+    val confirmation = Outgoing(
+      Recipient(userid),
+      OutMessage(
+        None, Some(TextMessage("OK you're all set!"))
+      )
+    )
+    Json.toJson(confirmation)
   }
 }
