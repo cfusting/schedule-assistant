@@ -1,0 +1,32 @@
+curl -k -X POST -H "Content-Type: application/json" -d '{
+  "object":"page",
+  "entry":[
+    {
+      "id":483961371799675,
+      "time":1458696618911,
+      "messaging":[
+        {
+          "sender":{
+            "id":"USER_ID"
+          },
+          "recipient":{
+            "id":"PAGE_ID"
+          },
+          "timestamp":1458696618268,
+          "message":{
+            "mid":"mid.1458696618141:b4ef9d19ec21086067",
+            "seq":51,
+            "attachments":[
+              {
+                "type":"image",
+                "payload":{
+                  "url":"IMAGE_URL"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}' --include "http://localhost:9000/webhook"
