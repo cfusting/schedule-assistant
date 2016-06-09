@@ -12,17 +12,15 @@ val corenlpmodels = "edu.stanford.nlp" % "stanford-corenlp" % "3.6.0" classifier
 
 val joda = "joda-time" % "joda-time" % "2.9.4"
 
-val h2 = "com.h2database" % "h2" % "1.4.192"
+val h2 = "com.h2database" % "h2" % "1.4.187"
 
 val playslick = "com.typesafe.play" %% "play-slick" % "2.0.0"
 
 val slickev = "com.typesafe.play" %% "play-slick-evolutions" % "2.0.0"
 
-libraryDependencies ++= Seq(cache , ws   , specs2 % Test,
-  corenlp, corenlpmodels, joda, h2, playslick, slickev )
+libraryDependencies ++= Seq(cache , ws  , specs2 % Test,
+  corenlp, corenlpmodels, joda, playslick, slickev, h2 )
 
-libraryDependencies += evolutions
-
-unmanagedResourceDirectories in Test <+=  baseDirectory ( _ /"target/web/public/test" )  
+unmanagedResourceDirectories in Test <+=  baseDirectory ( _ /"target/web/public/test" )
 
 resolvers += "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases"  

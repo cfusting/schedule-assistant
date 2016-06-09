@@ -20,14 +20,15 @@ import edu.stanford.nlp.pipeline._
 import edu.stanford.nlp.time._
 import edu.stanford.nlp.util.CoreMap
 import org.joda.time.DateTime
-import org.joda.time.format.{DateTimeFormatter, ISODateTimeFormat}
+import org.joda.time.format.{DateTimeFormat, DateTimeFormatter, ISODateTimeFormat}
 import play.api.db.slick.DatabaseConfigProvider
 import slick.driver.JdbcProfile
+
 import scala.concurrent._
 import ExecutionContext.Implicits.global
-
 import scala.collection.JavaConversions._
 import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 class Application @Inject() (ws: WSClient, conf: Configuration, userDAO: UserDAO) extends Controller {
 
@@ -65,77 +66,45 @@ class Application @Inject() (ws: WSClient, conf: Configuration, userDAO: UserDAO
             entry =>
              entry.messaging.foreach(
                messaging => {
+                 val sd = messaging.sender
                  messaging.delivery match {
-                   case Some(x) => {
-                     // Delivery Confirmation
+                   case Some(delivery) =>
                     Ok("Delivery verified.")
-                   }
-                   case None => {
-
-                   }
+                   case None =>
                  }
                  messaging.message match {
-                   case Some(x) => {
-                     // Message
-                     x.text match {
-                       case Some(x) => {
+                   case Some(message) => // Message
+                     message.text match {
+                       case Some(text) =>
                          // Text
-                         Logger.info("Text")
-                         val dates = getDates(x)
-                         val ires = userDAO.insert(User(messaging.sender, "text"))
-                         ires onFailure {
-                           case ex => Logger.info("Failed insert: " + ex.toString)
+                         Logger.info("Text received from: " + sd)
+                         userDAO.getUser(sd) onSuccess {
+                           case Some(user) =>
+                             if (user.action == "day") {
+                             Logger.info("Day request.")
+                             val dates = getDates(text)
+                             sendJson(getTextJson(sd, "Looks like Britt has 1pm - 3pm free on " +
+                               dayFormat(dates.head)))
+                             userDAO.insertOrUpdate(User(sd, "time")) onComplete {
+                               case Success(nothing) =>
+                               case Failure(exception) => Logger.error("Failed to insert or update. Id: " + sd + " Action: "
+                                 + "time")
+                             }
+                           }
                          }
-                         val res = userDAO.all
-                         res onFailure {
-                           case ex => Logger.info("Failed query: " + ex.toString)
-
-                         }
-                         res.map(_.foreach {
-                           case user => println(user.id)
-                         })
-//                         val responseJson = Json.obj(
-//                           "recipient" -> Json.obj("id" -> messaging.sender),
-//                           "message" -> Json.obj("text" -> "I know wassup!")
-//                         )
-//                         val res: Future[WSResponse] = ws.url("https://graph.facebook.com/v2.6/me/messages")
-//                           .withQueryString("access_token" -> conf.underlying.getString("thepenguin.token"))
-//                           .post(responseJson)
-                       }
-                       case None => {
-                         // No text
-                       }
+                       case None =>
                      }
-                   }
-                   case None => {
-                     // No message
-                   }
+                   case None =>
                  }
                  messaging.postback match {
-                   case Some(x) => {
-                    // Postback
+                   case Some(postback) => // Postback
                     Logger.info("Postback")
-                     x.payload match {
-                       case "schedule" => {
-                         val res: Future[WSResponse] = ws.url("https://graph.facebook.com/v2.6/me/messages")
-                           .withQueryString("access_token" -> conf.underlying.getString("thepenguin.token"))
-                           .post(genDayOptions(messaging.sender))
-                       }
-                       case "tom" | "dayafter" | "afterthat"  => {
-                         val res: Future[WSResponse] = ws.url("https://graph.facebook.com/v2.6/me/messages")
-                           .withQueryString("access_token" -> conf.underlying.getString("thepenguin.token"))
-                           .post(genTimeOptions(messaging.sender))
-                       }
-                       case "1pm" | "2pm" | "3pm" => {
-                         val res: Future[WSResponse] = ws.url("https://graph.facebook.com/v2.6/me/messages")
-                           .withQueryString("access_token" -> conf.underlying.getString("thepenguin.token"))
-                           .post(confirmSchedule(messaging.sender))
-                       }
+                     postback.payload match {
+                       case "schedule" =>
+                         sendJson(getTextJson(sd, "What day are you interested in?"))
+                         userDAO.insertOrUpdate(User(sd, "day"))
                      }
-                   }
-                   case None => {
-                     // No Postback
-                   }
+                   case None =>  // No Postback
                  }
                }
              )
@@ -201,13 +170,24 @@ class Application @Inject() (ws: WSClient, conf: Configuration, userDAO: UserDAO
     Json.toJson(timeOptions)
   }
 
-  def confirmSchedule(userid: String): JsValue = {
+  def getTextJson(userid: String, text: String): JsValue = {
     val confirmation = Outgoing(
       Recipient(userid),
       OutMessage(
-        None, Some(TextMessage("OK you're all set!"))
+        None, Some(TextMessage(text))
       )
     )
     Json.toJson(confirmation)
   }
+
+  def sendJson(json: JsValue): Future[WSResponse] = {
+    Logger.info("Sending json to server: " + json.toString)
+     ws.url("https://graph.facebook.com/v2.6/me/messages")
+      .withQueryString("access_token" -> conf.underlying.getString("thepenguin.token"))
+      .post(json)
+  }
+
+  def dayFormat(dt: DateTime) = DateTimeFormat.forPattern("EEEEE MMMM d").print(dt)
+
 }
+
