@@ -16,7 +16,7 @@ curl -k -X POST -H "Content-Type: application/json" -d '{
         "message":{
             "mid":"mid.1464060164681:a9e58e9d663049f946",
             "seq":5,
-            "text":"What are you?"
+            "text":"this coming monday"
         }
         }
     ]
