@@ -1,3 +1,5 @@
+import NativePackagerKeys._
+
 name := "bot"
 
 version := "1.0"
