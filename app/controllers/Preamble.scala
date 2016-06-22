@@ -91,11 +91,11 @@ object Preamble {
     (JsPath \ "entry").read[Seq[Entry]]
   )(FMessage.apply _)
 
-  implicit val textMessageWrites = new Writes[TextMessage] {
-    def writes(textMessage: TextMessage) = Json.obj(
-      "text" -> textMessage.text
-    )
-  }
+//  implicit val textMessageWrites = new Writes[TextMessage] {
+//    def writes(textMessage: TextMessage) = Json.obj(
+//      "text" -> textMessage.text
+//    )
+//  }
 
   implicit val recipientWrites = new Writes[Recipient] {
     def writes(recipient: Recipient) = Json.obj(
@@ -123,7 +123,7 @@ object Preamble {
 
   implicit val outMessageWrites: Writes[OutMessage] = (
     (JsPath \ "attachment").writeNullable[OutAttachment] and
-      (JsPath \ "text").writeNullable[TextMessage]
+      (JsPath \ "text").writeNullable[String]
     )(unlift(OutMessage.unapply _))
 
   implicit val outgoingWrites: Writes[Outgoing] = (

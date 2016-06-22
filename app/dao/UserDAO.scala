@@ -1,5 +1,6 @@
 package dao
 
+import java.sql.Timestamp
 import javax.inject.Inject
 
 import models.User
@@ -7,6 +8,7 @@ import play.api.Logger
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import slick.driver.JdbcProfile
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import org.joda.time.DateTime
 
 import scala.concurrent.Future
 
@@ -17,12 +19,12 @@ class UserDAO @Inject()(protected val dbConfigProvider: DatabaseConfigProvider)
   private val Users = TableQuery[UsersTable]
 
   def all(): Future[Seq[User]] = {
-    Logger.info("Querying all from users table")
+    Logger.info("Querying all from users table.")
     db.run(Users.result)
   }
 
   def insertOrUpdate(user: User): Future[Unit] = {
-    Logger.info("Inserting into users table" + user.toString)
+    Logger.info("Inserting into users table " + user.toString)
     db.run(Users insertOrUpdate user).map { _ => () }
   }
 
@@ -35,7 +37,8 @@ class UserDAO @Inject()(protected val dbConfigProvider: DatabaseConfigProvider)
 
     def id = column[String]("ID", O.PrimaryKey)
     def action = column[String]("ACTION")
+    def timestamp = column[Option[Timestamp]]("SCHEDULED")
 
-    def * = (id, action) <> (User.tupled, User.unapply _)
+    def * = (id, action, timestamp) <> (User.tupled, User.unapply _)
   }
 }

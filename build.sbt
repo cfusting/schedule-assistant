@@ -18,8 +18,10 @@ val playslick = "com.typesafe.play" %% "play-slick" % "2.0.0"
 
 val slickev = "com.typesafe.play" %% "play-slick-evolutions" % "2.0.0"
 
+val gocal = "com.google.api-client" % "google-api-client" % "1.19.1"
+
 libraryDependencies ++= Seq(cache , ws  , specs2 % Test,
-  corenlp, joda, playslick, slickev, h2 )
+  corenlp, joda, playslick, slickev, h2, gocal )
 
 unmanagedResourceDirectories in Test <+=  baseDirectory ( _ /"target/web/public/test" )
 

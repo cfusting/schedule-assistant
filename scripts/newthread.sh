@@ -10,7 +10,7 @@ curl -X POST -H "Content-Type: application/json" -d '{
                 "type":"template",
                 "payload":{
                     "template_type":"button",
-                    "text":"Hi! I'"'"'m Britt'"'"'s scheduler. What would you like to do?",
+                    "text":"Hi! I'"'"'m Britt'"'"'s scheduler. What would you like to do? You can always say '"'"'menu'"'"' to see these options again.",
                     "buttons":[
                         {
                         "type":"postback",

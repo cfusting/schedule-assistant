@@ -1,5 +1,7 @@
 package models
 
+import java.sql.Timestamp
+
 // Incoming
 case class FMessage(obj: String, entry: Seq[Entry])
 case class Entry(id: String, time: Double, messaging: Seq[Messaging])
@@ -15,11 +17,11 @@ case class Postback(payload: String)
 // Outgoing
 case class Outgoing(recipient: Recipient, message: OutMessage)
 case class Recipient(id: String)
-case class Payload(template_type: String, text: String, buttons: Seq[Button])
 case class Button(typ: String, url: Option[String], title: Option[String], payload: Option[String])
-case class OutMessage(attachment: Option[OutAttachment], text: Option[TextMessage])
-case class TextMessage(text: String)
+case class OutMessage(attachment: Option[OutAttachment], text: Option[String])
+//case class TextMessage(text: String)
 case class OutAttachment(typ: String, payload: Payload)
+case class Payload(template_type: String, text: String, buttons: Seq[Button])
 
 // Tables
-case class User(id: String, action: String)
+case class User(id: String, action: String, timestamp: Option[Timestamp] = None)
