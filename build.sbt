@@ -8,7 +8,7 @@ scalaVersion := "2.11.7"
 
 val corenlp = "edu.stanford.nlp" % "stanford-corenlp" % "3.6.0"
 
-//val corenlpmodels = "edu.stanford.nlp" % "stanford-corenlp" % "3.6.0" classifier "models"
+val corenlpmodels = "edu.stanford.nlp" % "stanford-corenlp" % "3.6.0" classifier "models"
 
 val joda = "joda-time" % "joda-time" % "2.9.4"
 
@@ -18,10 +18,10 @@ val playslick = "com.typesafe.play" %% "play-slick" % "2.0.0"
 
 val slickev = "com.typesafe.play" %% "play-slick-evolutions" % "2.0.0"
 
-val gocal = "com.google.api-client" % "google-api-client" % "1.19.1"
+val google = "com.google.api-client" % "google-api-client" % "1.19.1"
 
 libraryDependencies ++= Seq(cache , ws  , specs2 % Test,
-  corenlp, joda, playslick, slickev, h2, gocal )
+  corenlp, corenlpmodels, joda, playslick, slickev, h2, google )
 
 unmanagedResourceDirectories in Test <+=  baseDirectory ( _ /"target/web/public/test" )
 
