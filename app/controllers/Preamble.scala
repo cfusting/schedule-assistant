@@ -91,12 +91,6 @@ object Preamble {
     (JsPath \ "entry").read[Seq[Entry]]
   )(FMessage.apply _)
 
-//  implicit val textMessageWrites = new Writes[TextMessage] {
-//    def writes(textMessage: TextMessage) = Json.obj(
-//      "text" -> textMessage.text
-//    )
-//  }
-
   implicit val recipientWrites = new Writes[Recipient] {
     def writes(recipient: Recipient) = Json.obj(
       "id" -> recipient.id

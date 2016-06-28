@@ -40,7 +40,7 @@ object JsonUtil {
     Json.toJson(timeOptions)
   }
 
-  def getMenuJson(sd: String): JsValue = {
+  def getMenuJson(implicit sd: String): JsValue = {
     val menu = Outgoing(
       Recipient(sd),
       OutMessage(
@@ -54,7 +54,7 @@ object JsonUtil {
     Json.toJson(menu)
   }
 
-  def getTextMessageJson(userid: String, text: String): JsValue = {
+  def getTextMessageJson(text: String)(implicit userid: String): JsValue = {
     val confirmation = Outgoing(
       Recipient(userid),
       OutMessage(

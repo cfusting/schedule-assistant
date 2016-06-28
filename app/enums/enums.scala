@@ -1,6 +1,8 @@
 package enums
 
 object ActionStates extends Enumeration {
+  // There is no action, the user does not exist in the DB
+  val none = Value
   // At the main menu.
   val menu = Value
   // Clicked schedule button

@@ -2,6 +2,9 @@ package models
 
 import java.sql.Timestamp
 
+import com.github.tminglei.slickpg.Range
+import org.joda.time.DateTime
+
 // Incoming
 case class FMessage(obj: String, entry: Seq[Entry])
 case class Entry(id: String, time: Double, messaging: Seq[Messaging])
@@ -25,3 +28,11 @@ case class Payload(template_type: String, text: String, buttons: Seq[Button])
 
 // Tables
 case class User(id: String, action: String, timestamp: Option[Timestamp] = None)
+case class Availability(userId: String, period: Range[Timestamp], id: Long = 0)
+case class SimpleMessage(id: String, seq: Int)
+
+// Actions
+case class UserAction(user: User, text: String = "")
+
+// Time Stuff
+case class TimeRange(start: DateTime, end: DateTime)

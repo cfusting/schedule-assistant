@@ -18,7 +18,7 @@ class MasterTime {
   val timeAnnotator = new TimeAnnotator
   pipe.addAnnotator(timeAnnotator)
 
-  def getDates(text: String): Seq[DateTime] = {
+  def parseDateTime(text: String): Seq[DateTime] = {
     val ano = new Annotation(text)
     val theDate = new DateTime
     val fmt = ISODateTimeFormat.dateTime
@@ -30,7 +30,7 @@ class MasterTime {
       val timeExpr = timexAnn.get(classOf[TimeExpression.Annotation])
       val temporal = timeExpr.getTemporal.getTimexValue
       val nextTime = new DateTime(temporal)
-      Logger.info("Parsed date: " + fmt.print(nextTime))
+      Logger.info("Parsed datetime: " + fmt.print(nextTime))
       nextTime
     })
   }
