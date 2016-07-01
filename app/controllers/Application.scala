@@ -1,17 +1,12 @@
 package controllers
 
-import java.sql.Timestamp
-
-import utilities._
 import enums._
 import Preamble._
 import javax.inject.Inject
 
 import akka.util.ByteString
-import dao.{AvailabilityDAO, MessagesDAO, UserDAO}
-import google.CalendarTools
+import dao.UserDAO
 import models._
-import nlp.MasterTime
 import play.api._
 import play.api.http.HttpEntity
 import play.api.libs.json._
@@ -20,18 +15,14 @@ import play.api.mvc._
 
 import scala.concurrent._
 import ExecutionContext.Implicits.global
-import scala.collection.JavaConversions._
-import scala.concurrent.Future
-import scala.util.{Failure, Success}
 import play.api.data.validation.ValidationError
-import respond.ActionResponder
+import respond.{ActionResponder, TextResponder}
 
 class Application @Inject()(ws: WSClient, conf: Configuration, userDAO: UserDAO,
-                            actionResponder: ActionResponder, messagesDAO: MessagesDAO)
+                            actionResponder: ActionResponder, textResponder: TextResponder)
   extends Controller {
 
-  val mt = new MasterTime
-  val calendar = new CalendarTools(conf)
+  val log = Logger(this.getClass)
 
   def index = Action {
     Ok(views.html.index("Your new application is ready."))
@@ -39,7 +30,7 @@ class Application @Inject()(ws: WSClient, conf: Configuration, userDAO: UserDAO,
 
   def webhook = Action {
     implicit request =>
-      Logger.info("request: " + request.body)
+      log.info("request: " + request.body)
       val challenge = request.getQueryString("hub.challenge") map {
         _.trim
       } getOrElse ""
@@ -47,7 +38,7 @@ class Application @Inject()(ws: WSClient, conf: Configuration, userDAO: UserDAO,
         _.trim
       } getOrElse ""
       if (verify == "penguin_verify") {
-        Logger.info("Penguin verified.")
+        log.info("Penguin verified.")
         Result(
           header = ResponseHeader(200, Map.empty),
           body = HttpEntity.Strict(ByteString(challenge), Some("text/plain"))
@@ -59,13 +50,13 @@ class Application @Inject()(ws: WSClient, conf: Configuration, userDAO: UserDAO,
 
   def webhookPost = Action(BodyParsers.parse.json) {
     implicit request =>
-      Logger.info("request: " + request.body)
+      log.debug("request: " + request.body)
       val fmessageResult = request.body.validate[FMessage]
       fmessageResult.fold(handleJsonErrors, handleJsonSuccess)
   }
 
   private def handleJsonErrors(invalid: Seq[(JsPath, Seq[ValidationError])]): Result = {
-    Logger.error(invalid.toString())
+    log.error(invalid.toString())
     BadRequest("Malformed JSON.")
   }
 
@@ -76,13 +67,13 @@ class Application @Inject()(ws: WSClient, conf: Configuration, userDAO: UserDAO,
           messaging => {
             implicit val userId = messaging.sender
             messaging.delivery foreach {
-              handleDelivery
+              delivery
             }
             messaging.message foreach {
-              _.text foreach handleText
+              _.text foreach textResponder.respond
             }
             messaging.postback foreach {
-              handlePostback
+              postback
             }
           }
         )
@@ -90,51 +81,17 @@ class Application @Inject()(ws: WSClient, conf: Configuration, userDAO: UserDAO,
     Ok("Request Received")
   }
 
-  def handleDelivery(delivery: Delivery) = {
-    Logger.info("Provider verified delivery of messages since: " + delivery.watermark.toString)
+  def delivery(delivery: Delivery) = {
+    log.debug("Provider verified delivery of messages since: " + delivery.watermark.toString)
     Ok("Delivery confirmation confirmed.")
   }
 
-  private def handleText(text: String)(implicit sd: String): Unit = {
-    Logger.info("Text message received from: " + sd)
-    userDAO.getUser(sd) onComplete {
-      case Success(suc) => suc match {
-        case Some(user) =>
-          actionResponder.respond(UserAction(user, text))
-        case None =>
-          val user = User(sd, ActionStates.none.toString)
-          val dbResult = userDAO.insertOrUpdate(user)
-          LogUtils.logDBResult(dbResult)
-          actionResponder.respond(UserAction(user, text))
-      }
-      case Failure(ex) =>
-        Logger.info("DB failure for user with id: " + sd + ". Message: " + ex.getMessage.toString)
-        bigFail
-    }
-  }
-
-  private def handlePostback(postback: Postback )(implicit sd: String): Unit = {
-    Logger.info("Postback")
+  private def postback(postback: Postback )(implicit sd: String): Unit = {
+    log.debug("Postback")
     val user = User(sd, ActionStates.schedule.toString)
     actionResponder.respond(UserAction(user))
   }
 
-  private def sendJson(json: JsValue): Future[WSResponse] = {
-    Logger.info("Sending json to server: " + json.toString)
-    ws.url("https://graph.facebook.com/v2.6/me/messages")
-      .withQueryString("access_token" -> conf.underlying.getString("thepenguin.token"))
-      .post(json)
-  }
-
-  private def bigFail(implicit sd: String) = {
-    Logger.info("Big Fail.")
-    val resdb = userDAO.insertOrUpdate(User(sd, ActionStates.menu.toString))
-    LogUtils.logDBResult(resdb)
-    val res1 = sendJson(JsonUtil.getTextMessageJson("Something has gone terribly wrong! Let's start over."))
-    LogUtils.logSendResult(res1)
-    val res2 = sendJson(JsonUtil.getMenuJson(sd))
-    LogUtils.logSendResult(res2)
-  }
 }
 
 

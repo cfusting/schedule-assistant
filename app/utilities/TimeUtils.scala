@@ -2,8 +2,8 @@ package utilities
 
 import java.sql.Timestamp
 
-import org.joda.time.{DateTime, Period}
-import org.joda.time.format.{DateTimeFormat, ISODateTimeFormat}
+import org.joda.time.{DateTime, Duration, Period}
+import org.joda.time.format.{DateTimeFormat, ISODateTimeFormat, PeriodFormatter, PeriodFormatterBuilder}
 import com.github.tminglei.slickpg.Range
 import models.{Availability, TimeRange}
 import play.Logger
@@ -16,6 +16,18 @@ object TimeUtils {
 
   implicit def Timestamp2DateTime(ts: Timestamp): DateTime = {
     new DateTime(ts.getTime)
+  }
+
+  implicit def googleDateTime2dateTime(dt: com.google.api.client.util.DateTime): DateTime = {
+    new DateTime(dt.getValue)
+  }
+
+  implicit def googleDateTime2Timestamp(dt: com.google.api.client.util.DateTime): Timestamp = {
+    new Timestamp(dt.getValue)
+  }
+
+  implicit def dateTime2googleTime(dt: DateTime): com.google.api.client.util.DateTime = {
+    new com.google.api.client.util.DateTime(dt.getMillis)
   }
 
   val tsFormatter = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
@@ -34,7 +46,7 @@ object TimeUtils {
     Logger.info("Requested datetime: " + isoFormat(dt))
     range.find { x =>
       Logger.info("Available start datetime: " + isoFormat(x.start))
-        x.start == dt
+      x.start == dt
     }.map(_.start)
   }
 
@@ -42,12 +54,33 @@ object TimeUtils {
     day.withTime(time.toLocalTime)
   }
 
-  def validateDay(dt: DateTime): DateTime = {
-    if (dt.isBefore(new DateTime)) {
-      dt.minusWeeks(1)
+  /**
+    * Transforms the datetime such that it represents the start of the day in the future.
+    *
+    * @param dt
+    * @return
+    */
+  def getFutureStartOfDay(dt: DateTime): DateTime = {
+    val day = dt.withTimeAtStartOfDay
+    if (day.isBefore(new DateTime)) {
+      day.minusWeeks(1)
     } else {
-      dt
+      day
     }
+  }
+
+  def getHourMinutePeriodFormatter = {
+    new PeriodFormatterBuilder()
+      .appendHours
+      .appendSuffix(" hour", " hours")
+      .appendSeparator(" and ")
+      .appendMinutes
+      .appendSuffix(" minute", " minutes")
+      .toFormatter
+  }
+
+  def getHourMinutePeriodString(dt: DateTime, dt2: DateTime): String = {
+    getHourMinutePeriodFormatter.print(new Period(dt, dt2))
   }
 
 }

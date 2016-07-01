@@ -16,29 +16,24 @@ class UserDAO @Inject()(protected val dbConfigProvider: DatabaseConfigProvider,
   extends HasDatabaseConfigProvider[JdbcProfile]{
   import pgslick.MyPostgresDriver.api._
 
+  val log = Logger(this.getClass)
+
   private val Users = TableQuery[UsersTable]
 
   def all(): Future[Seq[User]] = {
-    Logger.info("Querying all from users table.")
+    log.debug("Querying all from users table.")
     db.run(Users.result)
   }
 
   def iouUser(user: User) = Users insertOrUpdate user
 
   def insertOrUpdate(user: User): Future[Unit] = {
-    Logger.info("Inserting into users table " + user.toString)
+    log.debug("Inserting into users table " + user.toString)
     db.run(iouUser(user)).map { _ => () }
   }
 
-  def persistAvailability(user: User, avails: Seq[Availability]):
-    Future[Unit] = {
-    val ops = iouUser(user) andThen availabilityDAO.iAvailabilities(avails)
-    Logger.info("Inserting availability info for user " + user.id)
-    db.run(ops.transactionally).map { _ => ()}
-  }
-
   def getUser(id: String): Future[Option[User]] = {
-    Logger.info("Getting info for user: " + id)
+    log.debug("Getting info for user: " + id)
     db.run(Users.filter(_.id === id).result.headOption)
   }
 
@@ -47,7 +42,8 @@ class UserDAO @Inject()(protected val dbConfigProvider: DatabaseConfigProvider,
     def id = column[String]("id", O.PrimaryKey)
     def action = column[String]("action")
     def timestamp = column[Option[Timestamp]]("scheduled")
+    def eventId = column[Option[String]]("event_id")
 
-    def * = (id, action, timestamp) <> (User.tupled, User.unapply)
+    def * = (id, action, timestamp, eventId) <> (User.tupled, User.unapply)
   }
 }

@@ -5,159 +5,167 @@ import javax.inject.Inject
 import dao.UserDAO
 import enums.ActionStates
 import google.CalendarTools
-import models.{TimeRange, User, UserAction}
+import models.{Availability, TimeRange, User, UserAction}
 import nlp.MasterTime
 import org.joda.time.DateTime
-import play.Logger
-import play.api.Configuration
-import play.api.libs.json.JsValue
-import play.api.libs.ws.{WSClient, WSResponse}
-import utilities.{JsonUtil, LogUtils, TimeUtils}
+import play.api.{Configuration, Logger}
+import play.api.libs.ws.WSClient
+import utilities.{JsonUtil, TimeUtils}
 import utilities.TimeUtils._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
-class ActionResponder @Inject()(userDAO: UserDAO, ws: WSClient, calendar: CalendarTools,
-                               configuration: Configuration) {
+class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: WSClient,
+                                calendar: CalendarTools, override val conf: Configuration,
+                                masterTime: MasterTime)
+  extends Responder {
 
-  val mt = new MasterTime
+  override val log = Logger(this.getClass)
 
   def respond(userAction: UserAction): Unit = {
     implicit val userId = userAction.user.id
+    implicit val log = Logger(this.getClass + " Action: " + userAction.user.action)
+    log.debug("User: " + userId + " with Action: " + userAction.user.action)
 
     ActionStates.withName(userAction.user.action) match {
       case ActionStates.schedule => schedule
       case ActionStates.day => day(userAction.text)
+      case ActionStates.duration => duration(userAction.user, userAction.text)
       case ActionStates.time => time(userAction.user, userAction.text)
-      case ActionStates.none => none(userAction.text)
+      case ActionStates.menu => menu
       case whatever => default
     }
   }
 
   private def schedule(implicit userId: String) = {
-    sendJson(JsonUtil.getTextMessageJson("What day are you interested in? " +
-      "You can say things like \"tomorrow \" or \"next Friday\""))
-    userDAO.insertOrUpdate(User(userId, ActionStates.day.toString))
+    userDAO.insertOrUpdate(User(userId, ActionStates.day.toString)) onSuccess {
+      case _ => sendJson(JsonUtil.getTextMessageJson("What day are you interested in? " +
+        "You can say things like \"tomorrow \" or \"next Friday\""))
+    }
   }
 
-  private def day(text: String)(implicit userId: String) = {
-    val dates = mt.parseDateTime(text)
+  private def day(text: String)(implicit userId: String, log: Logger) = {
+    val dates = masterTime.getDateTimes(text)
     dates.length match {
-      case 1 =>
-        val day = TimeUtils.validateDay(dates.head)
-        availability(day)
-
+      case 1 => respondWithAvailability(dates.head)
       case default =>
         sendJson(JsonUtil.getTextMessageJson("Sorry I don't understand what day you want. You can say " +
           "things like \"tomorrow\" or \"next Friday\""))
     }
   }
 
-  private def availability(day: DateTime)(implicit userId: String) = {
-    Logger.info("User: " + userId + " requested DAY on date: " + TimeUtils.isoFormat(day))
-    val times = calendar.getAvailabilityForDay(day)
-    Logger.info("Found " + times.size + " availabilities.")
+
+  private def respondWithAvailability(day: DateTime)(implicit userId: String, log: Logger) = {
+    val futureDay = TimeUtils.getFutureStartOfDay(day)
+    log.debug("User: " + userId + " requested date: " + TimeUtils.isoFormat(futureDay))
+    val times = calendar.getAvailabilityForDay(futureDay)
+    log.debug("Found " + times.size + " availabilities for user: " + userId)
     times.length match {
       case 0 =>
-        val response = sendJson(JsonUtil.getTextMessageJson("Britt has no availability on " +
-          TimeUtils.dayFormat(day) + ". What other day is good for you?"))
-        LogUtils.logSendResult(response)
+        sendJson(JsonUtil.getTextMessageJson(s"Britt has no availability " +
+          s"on ${TimeUtils.dayFormat(futureDay)}. What other day is good for you?"))
       case bunch =>
-        val response = sendJson(JsonUtil.getTextMessageJson("Britt has the following times available "
-          + "on " + TimeUtils.dayFormat(day) + ": " + getTimes(times) + "."))
-        LogUtils.logSendResult(response)
-        val result = userDAO.insertOrUpdate(User(userId, ActionStates.time.toString,
-          Some(day)))
-        LogUtils.logDBResult(result)
+        userDAO.insertOrUpdate(User(userId, ActionStates.time.toString, Some(futureDay))) onComplete {
+          case Success(_) =>
+            sendJson(JsonUtil.getTextMessageJson("Britt has the following times available "
+              + "on " + TimeUtils.dayFormat(futureDay) + ": " + getTimeStrings(times) + "."))
+          case Failure(ex) => bigFail
+        }
     }
   }
 
-  private def getTimes(times: Seq[TimeRange]): String = {
+  private def getTimeStrings(times: Seq[TimeRange]): String = {
     times.map { t =>
       TimeUtils.timeFormat(t.start) + " to " + TimeUtils.timeFormat(t.end)
     } mkString ", "
   }
 
-  private def time(user: User, text: String)(implicit userId: String) = {
+  private def time(user: User, text: String)(implicit userId: String, log: Logger) = {
     user.timestamp match {
       case Some(day) =>
-        val times = mt.parseDateTime(text)
+        val times = masterTime.getDateTimes(text)
         times.length match {
           case 1 =>
-            matchTime(TimeUtils.dateTimeForDayAndTime(day, times.head))
-          case default => noOrMultipleTimes
+            val time = times.head.withDate(day.toLocalDate)
+            val avails = calendar.matchAvailabilityForTime(time)
+            avails.length match {
+              case 0 =>
+                sendJson(JsonUtil.getTextMessageJson("Sorry Britt is not available during that time. Try a time " +
+                  "during one of the windows specified previously."))
+              case 1 =>
+                matchAvailability(avails.head)
+              case bunch =>
+                log.error(s"Found multiple (or zero) availabilities $avails.length")
+                bigFail
+            }
+          case default =>
+            sendJson(JsonUtil.getTextMessageJson("Sorry I don't understand what day you want. You can say " +
+              "things like \"1pm\" or \"2pm\""))
         }
       case None =>
-        Logger.info("No Timestamp for user: " + userId)
+        log.debug(s"No Timestamp for user: $userId")
         bigFail
     }
   }
 
-  private def matchTime(dt: DateTime)(implicit userId: String) = {
-    Logger.info("Matching datetime: " + TimeUtils.isoFormat(dt))
-    val times = calendar.getAvailabilityForDay(dt)
-    TimeUtils.matchTime(dt, times) match {
+  private def matchAvailability(avail: Availability)(implicit userId: String, log: Logger) = {
+    userDAO.insertOrUpdate(User(userId, ActionStates.duration.toString,
+      Some(avail.userTime), Some(avail.eventId))) onComplete {
+        case Success(suc) =>
+          sendJson(JsonUtil.getTextMessageJson("Ok. How long a lesson would you like? Britt has at most "
+            + TimeUtils.getHourMinutePeriodString(avail.userTime, avail.endTime) + "."))
+        case Failure(ex) =>
+          log.error("Failed to persist user status. Error: " + ex.getMessage)
+          bigFail
+      }
+  }
+
+
+  private def duration(user: User, text: String)(implicit userId: String, log: Logger) = {
+    user.timestamp match {
       case Some(time) =>
-        calendar.postAppt(time, userId)
-        sendJson(JsonUtil.getTextMessageJson("Ok I've got you down for " +
-          TimeUtils.dayFormat(time) + " at " + TimeUtils.timeFormat(time) + "."))
-        returnToMenu
-      case default =>
-        sendJson(JsonUtil.getTextMessageJson("Sorry Britt doesn't have availability " +
-          "at " + TimeUtils.timeFormat(dt) + ". Please be more specific."))
+        user.eventId match {
+          case Some(eventId) =>
+            val times = masterTime.getPeriods(text)
+            times.length match {
+              case 1 =>
+                calendar.scheduleTime(time, times.head, eventId, userId) match {
+                  case Some(timerange) =>
+                    userDAO.insertOrUpdate(User(userId, ActionStates.menu.toString)) onComplete {
+                      case Success(suc) =>
+                        sendJson(JsonUtil.getTextMessageJson("Ok I've got you down for " +
+                      TimeUtils.dayFormat(timerange.start) + " at " + TimeUtils.timeFormat(timerange.start)
+                      + " until " + TimeUtils.timeFormat(timerange.end) + "."))
+                      case Failure(ex) =>
+                        log.error(s"Failed to persist user to menu action: $ex.getMessage")
+                        bigFail
+                    }
+                    returnToMenu
+                  case None =>
+                }
+              case bunch =>
+                log.debug(s"Parsed too many (or no) durations for user: $userId")
+                sendJson(JsonUtil.getTextMessageJson("Sorry I don't understand what day you want. You can say " +
+                  "things like \"1 hour\" or \"30 minutes\"."))
+            }
+          case None =>
+            log.error(s"No event id for user: $userId")
+            bigFail
+        }
+      case None =>
+        log.error(s"No timestamp for user: $userId")
+        bigFail
     }
+
   }
 
-  private def returnToMenu(implicit userId: String) = {
-    LogUtils.logSendResult(sendJson(JsonUtil.getMenuJson))
-    LogUtils.logDBResult(userDAO.insertOrUpdate(User(userId, ActionStates.menu.toString)))
-  }
-
-  private def noOrMultipleTimes(implicit userId: String) = {
-    sendJson(JsonUtil.getTextMessageJson("Sorry I don't understand what day you want. You can say " +
-      "things like \"1pm\" or \"2pm\""))
-  }
-
-  private def none(text: String)(implicit userId: String) = {
-    Logger.info("No user found in DB, matching raw text for user: " + userId + ". Text: " + text)
-    parseTextOptions(text)
-  }
-
-  private def parseTextOptions(text: String)(implicit userId: String) = {
-    text match {
-      case "menu" =>
-        Logger.info("User: " + userId + " requested the menu screen.")
-        returnToMenu
-      case default =>
-        Logger.info("No matching text found for user: " + userId)
-        val response = sendJson(JsonUtil.getTextMessageJson("Sorry I don't understand what you want. Say \"menu\"" +
-          " to " + "see the menu."))
-        LogUtils.logSendResult(response)
-    }
+  private def menu(implicit userId: String) = {
+    sendJson(JsonUtil.getMenuJson(userId))
   }
 
   private def default(implicit userId: String) = {
-
+    returnToMenu
   }
-
-  private def sendJson(json: JsValue): Future[WSResponse] = {
-    Logger.info("Sending json to server: " + json.toString)
-    ws.url(getConf("message.url"))
-      .withQueryString("access_token" -> getConf("thepenguin.token"))
-      .post(json)
-  }
-
-  private def bigFail(implicit sd: String) = {
-    Logger.info("Big Fail.")
-    val resdb = userDAO.insertOrUpdate(User(sd, ActionStates.menu.toString))
-    LogUtils.logDBResult(resdb)
-    val res1 = sendJson(JsonUtil.getTextMessageJson("Oops, something has gone wrong... Let's start over."))
-    LogUtils.logSendResult(res1)
-    val res2 = sendJson(JsonUtil.getMenuJson(sd))
-    LogUtils.logSendResult(res2)
-  }
-
-  private def getConf(prop: String) = configuration.underlying.getString(prop)
 
 }

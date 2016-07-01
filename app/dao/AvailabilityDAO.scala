@@ -9,7 +9,6 @@ import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfigProvider}
 import slick.driver.JdbcProfile
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
-import com.github.tminglei.slickpg.Range
 import scala.concurrent.Future
 
 class AvailabilityDAO @Inject()(protected val dbConfigProvider: DatabaseConfigProvider)
@@ -20,19 +19,19 @@ class AvailabilityDAO @Inject()(protected val dbConfigProvider: DatabaseConfigPr
 
   def dAvailability(id: String) = Avails.filter(_.userId === id).delete
 
-  def deleteAvailabilities(id: String): Future[Unit] = {
+  def deleteAvailability(id: String): Future[Unit] = {
     Logger.info("Deleting availabilities for user: " + id)
     db.run(dAvailability(id)).map { _ => ()}
   }
 
-  def iAvailabilities(avails: Seq[Availability]) = Avails ++= avails
+  def iAvailability(avail: Availability) = Avails insertOrUpdate avail
 
-  def insertAvailabilities(avails: Seq[Availability]): Future[Unit] = {
-    Logger.info("Inserting into availability table " + avails.toString)
-    db.run(iAvailabilities(avails)).map{ _ => ()}
+  def insertAvailability(avail: Availability): Future[Unit] = {
+    Logger.info("Inserting into availability table " + avail.toString)
+    db.run(iAvailability(avail)).map{ _ => ()}
   }
 
-  def getAvailabilities(id: String): Future[Seq[Availability]] = {
+  def getAvailability(id: String): Future[Seq[Availability]] = {
     Logger.info("Getting availabilities for user: " + id)
     val op = Avails.filter(_.userId === id)
     db.run(op.result)
@@ -40,10 +39,12 @@ class AvailabilityDAO @Inject()(protected val dbConfigProvider: DatabaseConfigPr
 
   private class AvailabilityTable(tag: Tag) extends Table[Availability](tag, "availability") {
 
-    def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
     def userId = column[String]("user_id")
-    def period = column[Range[Timestamp]]("period")
-
-    def * = (userId, period, id) <> (Availability.tupled, Availability.unapply)
+    def eventId = column[String]("event_id")
+    def startTime = column[Timestamp]("start_time")
+    def endTime = column[Timestamp]("end_time")
+    def userTime = column[Timestamp]("user_time")
+    def * = (userId, eventId, startTime, endTime, userTime) <> (Availability.tupled, Availability.unapply)
+    def pk = primaryKey("user_event", (userId, eventId))
   }
 }

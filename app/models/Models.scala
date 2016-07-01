@@ -27,8 +27,8 @@ case class OutAttachment(typ: String, payload: Payload)
 case class Payload(template_type: String, text: String, buttons: Seq[Button])
 
 // Tables
-case class User(id: String, action: String, timestamp: Option[Timestamp] = None)
-case class Availability(userId: String, period: Range[Timestamp], id: Long = 0)
+case class User(id: String, action: String, timestamp: Option[Timestamp] = None,
+                eventId: Option[String] = None)
 case class SimpleMessage(id: String, seq: Int)
 
 // Actions
@@ -36,3 +36,5 @@ case class UserAction(user: User, text: String = "")
 
 // Time Stuff
 case class TimeRange(start: DateTime, end: DateTime)
+case class Availability(userId: String, eventId: String, startTime: Timestamp, endTime: Timestamp,
+                        userTime: Timestamp)
