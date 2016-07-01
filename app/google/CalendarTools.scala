@@ -1,15 +1,12 @@
 package google
 
-import java.io.IOException
-import java.sql.Timestamp
 import javax.inject.Inject
-import javax.print.attribute.standard.JobOriginatingUserName
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.calendar.model._
-import models.{Availability, TimeRange}
+import models.{Appointment, Availability, TimeRange}
 import org.joda.time.{DateTime, Period}
 import play.api.{Configuration, Logger}
 import utilities.TimeUtils
@@ -106,16 +103,18 @@ class CalendarTools @Inject()(conf: Configuration) {
     * @return
     */
   def scheduleTime(appointmentStartTime: DateTime, duration: Period, eventId: String, userName: String):
-  Option[TimeRange] = {
+  Option[Appointment] = {
     try {
       val appointmentEndTime = appointmentStartTime.withDurationAdded(duration.toStandardDuration.getMillis, 1)
       val event = service.events.get("primary", eventId).execute
       if (isTimeInWindow(appointmentStartTime, event) && isTimeInWindow(appointmentEndTime, event)) {
         service.events.delete("primary", eventId).execute
-        partitionAvailability(event, appointmentStartTime, appointmentEndTime, duration, userName) foreach { x =>
+        val events = partitionAvailability(event, appointmentStartTime, appointmentEndTime, duration, userName)
+        val apt = events map { x =>
           service.events.insert("primary", x).execute
         }
-        Some(TimeRange(appointmentStartTime, appointmentEndTime))
+        val aptId = apt.filter(_.getSummary != "Available").head.getId
+        Some(Appointment(aptId, TimeRange(appointmentStartTime, appointmentEndTime)))
       } else {
         None
       }
@@ -140,25 +139,30 @@ class CalendarTools @Inject()(conf: Configuration) {
                                     appointmentEndTime: DateTime, duration: Period,
                                     userName: String): Seq[Event] = {
     var events = List[Event]()
+    val appointment = new Event().setSummary("Lesson with " + userName)
+      .setStart(new EventDateTime().setDateTime(appointmentStartTime))
+      .setEnd(new EventDateTime().setDateTime(appointmentEndTime))
+    events = appointment :: events
     if (!appointmentStartTime.isEqual(availability.getStart.getDateTime)) {
       val availabilityBefore = new Event().setSummary("Available")
-        .setDescription("Generated when breaking apart availability: " + userName)
+        .setDescription("Generated when breaking apart availability")
         .setStart(new EventDateTime().setDateTime(availability.getStart.getDateTime))
         .setEnd(new EventDateTime().setDateTime(appointmentStartTime))
       events = availabilityBefore :: events
     }
-    val appointment = new Event().setSummary("Lesson with " + userName)
-      .setDescription("Scheduled at " + TimeUtils.niceFormat(new DateTime))
-      .setStart(new EventDateTime().setDateTime(appointmentStartTime))
-      .setEnd(new EventDateTime().setDateTime(appointmentEndTime))
-    events = appointment :: events
     if (!appointmentEndTime.isEqual(availability.getEnd.getDateTime)) {
       val availabilityAfter = new Event().setSummary("Available")
-        .setDescription("Generated when breaking apart availability: " + userName)
+        .setDescription("Generated when breaking apart availability")
         .setStart(new EventDateTime().setDateTime(appointmentEndTime))
         .setEnd(new EventDateTime().setDateTime(availability.getEnd.getDateTime))
       events = availabilityAfter :: events
     }
     events
+  }
+
+  def updateEvent(eventId: String, notes: String) = {
+    log.debug(s"Updating event $eventId with notes $notes")
+    val event = new Event().setDescription(notes)
+    service.events.patch("primary", eventId, event).execute
   }
 }

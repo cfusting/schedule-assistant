@@ -28,7 +28,8 @@ case class Payload(template_type: String, text: String, buttons: Seq[Button])
 
 // Tables
 case class User(id: String, action: String, timestamp: Option[Timestamp] = None,
-                eventId: Option[String] = None)
+                eventId: Option[String] = None, firstName: Option[String] = None,
+                lastName: Option[String] = None)
 case class SimpleMessage(id: String, seq: Int)
 
 // Actions
@@ -38,3 +39,4 @@ case class UserAction(user: User, text: String = "")
 case class TimeRange(start: DateTime, end: DateTime)
 case class Availability(userId: String, eventId: String, startTime: Timestamp, endTime: Timestamp,
                         userTime: Timestamp)
+case class Appointment(eventId: String, times: TimeRange)

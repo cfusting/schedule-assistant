@@ -32,6 +32,18 @@ class UserDAO @Inject()(protected val dbConfigProvider: DatabaseConfigProvider,
     db.run(iouUser(user)).map { _ => () }
   }
 
+  def updateAction(action: String)(implicit userId: String) = {
+    log.debug(s"Updating user $userId")
+    val query = Users.filter(u => u.id === userId).map(_.action).update(action)
+    db.run(query)
+  }
+
+  def updateName(firstName: String, lastName: String)(implicit userId: String) = {
+    log.debug(s"Updating user: $userId")
+    val query = for { c <- Users if c.id === userId} yield (c.firstName, c.lastName)
+    db.run(query.update(Some(firstName), Some(lastName)))
+  }
+
   def getUser(id: String): Future[Option[User]] = {
     log.debug("Getting info for user: " + id)
     db.run(Users.filter(_.id === id).result.headOption)
@@ -43,7 +55,9 @@ class UserDAO @Inject()(protected val dbConfigProvider: DatabaseConfigProvider,
     def action = column[String]("action")
     def timestamp = column[Option[Timestamp]]("scheduled")
     def eventId = column[Option[String]]("event_id")
+    def firstName = column[Option[String]]("first_name")
+    def lastName = column[Option[String]]("last_name")
 
-    def * = (id, action, timestamp, eventId) <> (User.tupled, User.unapply)
+    def * = (id, action, timestamp, eventId, firstName, lastName) <> (User.tupled, User.unapply)
   }
 }

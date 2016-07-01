@@ -8,6 +8,7 @@ import play.api.Configuration
 import play.api.libs.json.JsValue
 import play.api.libs.ws.{WSClient, WSResponse}
 import utilities.JsonUtil
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import scala.concurrent.Future
 
@@ -26,9 +27,21 @@ trait Responder {
   }
 
   def sendJson(json: JsValue): Future[WSResponse] = {
-    ws.url("https://graph.facebook.com/v2.6/me/messages")
-      .withQueryString("access_token" -> conf.underlying.getString("thepenguin.token"))
+    ws.url(getConf("message.url"))
+      .withQueryString("access_token" -> getConf("thepenguin.token"))
       .post(json)
+  }
+
+  def storeUserName(user: User)(implicit userId: String) = {
+    ws.url(getConf("profile.url") + userId)
+      .withQueryString("access_token" -> getConf("thepenguin.token"))
+      .get
+      .onSuccess {
+      case result =>
+        val firstName = (result.json \ "first_name").get.as[String]
+        val lastName = (result.json \ "last_name").get.as[String]
+          userDAO.updateName(firstName, lastName)
+    }
   }
 
   def getConf(prop: String) = conf.underlying.getString(prop)

@@ -63,7 +63,7 @@ object TimeUtils {
   def getFutureStartOfDay(dt: DateTime): DateTime = {
     val day = dt.withTimeAtStartOfDay
     if (day.isBefore(new DateTime)) {
-      day.minusWeeks(1)
+      day.plusWeeks(1)
     } else {
       day
     }
