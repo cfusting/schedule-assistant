@@ -143,8 +143,7 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
                         sendJson(JsonUtil.getTextMessageJson("Ok I've got you down for " +
                           TimeUtils.dayFormat(appt.times.start) + " at " + TimeUtils.timeFormat(appt.times.start)
                           + " until " + TimeUtils.timeFormat(appt.times.end) + ". Please enter any additional " +
-                          "information (phone number, special instructions) you would like to leave for Britt or " +
-                          "leave the message blank to send nothing."))
+                          "information (phone number, special instructions) you would like to leave for Britt."))
                       case Failure(ex) =>
                         log.error(s"Failed to persist user to menu action: $ex.getMessage")
                         bigFail
