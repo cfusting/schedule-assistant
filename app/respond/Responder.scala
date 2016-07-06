@@ -46,8 +46,7 @@ trait Responder {
 
   def getConf(prop: String) = conf.underlying.getString(prop)
 
-  def returnToMenu(implicit userId: String) = {
-    sendJson(JsonUtil.getMenuJson)
+  def resetToMenuStatus(implicit userId: String) = {
     userDAO.insertOrUpdate(User(userId, ActionStates.menu.toString))
   }
 }

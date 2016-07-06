@@ -11,8 +11,7 @@ import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 import scala.concurrent.Future
 
-class UserDAO @Inject()(protected val dbConfigProvider: DatabaseConfigProvider,
-                        availabilityDAO: AvailabilityDAO)
+class UserDAO @Inject()(protected val dbConfigProvider: DatabaseConfigProvider)
   extends HasDatabaseConfigProvider[JdbcProfile]{
   import pgslick.MyPostgresDriver.api._
 

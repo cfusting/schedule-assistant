@@ -36,6 +36,8 @@ object TimeUtils {
 
   def timeFormat(dt: DateTime) = DateTimeFormat.forPattern("h:mm a").print(dt)
 
+  def dayTimeFormat(dt: DateTime) = s"${dayFormat(dt)} ${timeFormat(dt)}"
+
   def isoFormat(dt: DateTime) = ISODateTimeFormat.dateTime.print(dt)
 
   def niceFormat(dt: DateTime) = DateTimeFormat.forPattern("h:mm a EEEEE MMMM d").print(dt)
@@ -83,4 +85,15 @@ object TimeUtils {
     getHourMinutePeriodFormatter.print(new Period(dt, dt2))
   }
 
+  def getTimeRangeStrings(times: Seq[TimeRange]): String = {
+    times.map { t =>
+      timeFormat(t.start) + " to " + timeFormat(t.end)
+    } mkString ", "
+  }
+
+ def getDayTimeStrings(dayTimes: Seq[TimeRange]): String = {
+    dayTimes.map { t =>
+      {dayTimeFormat(t.start)}
+    } mkString "\n"
+  }
 }

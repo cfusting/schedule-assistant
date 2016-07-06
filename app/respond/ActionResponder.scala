@@ -5,7 +5,7 @@ import javax.inject.Inject
 import dao.UserDAO
 import enums.ActionStates
 import google.CalendarTools
-import models.{Availability, TimeRange, User, UserAction}
+import models._
 import nlp.MasterTime
 import org.joda.time.DateTime
 import play.api.{Configuration, Logger}
@@ -35,6 +35,9 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
       case ActionStates.time => time(userAction.user, userAction.text)
       case ActionStates.menu => menu
       case ActionStates.notes => notes(userAction.user, userAction.text)
+      case ActionStates.cancel => cancel
+      case ActionStates.cancelDateTime => cancelDateTime(userAction.text)
+      case ActionStates.view => view
       case whatever => default
     }
   }
@@ -73,16 +76,10 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
           .firstName, user.lastName)) onComplete {
           case Success(_) =>
             sendJson(JsonUtil.getTextMessageJson("Britt has the following times available "
-              + "on " + TimeUtils.dayFormat(futureDay) + ": " + getTimeStrings(times) + "."))
+              + "on " + TimeUtils.dayFormat(futureDay) + ": " + getTimeRangeStrings(times) + "."))
           case Failure(ex) => bigFail
         }
     }
-  }
-
-  private def getTimeStrings(times: Seq[TimeRange]): String = {
-    times.map { t =>
-      TimeUtils.timeFormat(t.start) + " to " + TimeUtils.timeFormat(t.end)
-    } mkString ", "
   }
 
   private def time(user: User, text: String)(implicit userId: String, log: Logger) = {
@@ -130,11 +127,12 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
       case Some(time) =>
         user.eventId match {
           case Some(eventId) =>
-            val times = masterTime.getPeriods(text)
+            val times = masterTime.getDurations(text)
             times.length match {
-              case 1 =>
-                calendar.scheduleTime(time, times.head, eventId, user.firstName.getOrElse("") + " " + user.lastName
-                  .getOrElse(""))
+              case t if t <= 2 =>
+                val duration = times.reduceLeft(_.plus(_))
+                calendar.scheduleTime(time, duration, eventId, user.firstName.getOrElse("") + " " + user.lastName
+                  .getOrElse(""), userId)
                 match {
                   case Some(appt) =>
                     userDAO.insertOrUpdate(User(userId, ActionStates.notes.toString, Some(appt.times.start), Some(appt
@@ -176,15 +174,72 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
         calendar.updateEvent(eventId, text)
         sendJson(JsonUtil.getTextMessageJson("Ok Britt will be notified of your lesson and given your notes. Have a" +
           " great day!"))
-        returnToMenu
+        resetToMenuStatus
       case None =>
         log.error(s"No event id for user: $userId")
         bigFail
     }
   }
 
+  private def cancel(implicit userId: String) = {
+    userDAO.insertOrUpdate(User(userId, ActionStates.cancelDateTime.toString)) onComplete {
+      case Success(notta) =>
+        sendJson(JsonUtil.getTextMessageJson("What day and time would you like to cancel?"))
+      case Failure(ex) =>
+        bigFail
+    }
+  }
+
+  private def cancelDateTime(text: String)(implicit userId: String) = {
+    val dateTime = masterTime.getDateTimes(text)
+    dateTime.length match {
+      case 1 =>
+        calendar.getFutureCalendarAppointments(new DateTime().plusWeeks(2), userId) onComplete {
+          case Success(suc) =>
+            suc.find(_.times.start.isEqual(dateTime.head)) match {
+              case Some(entry) =>
+                calendar.cancelAppointment(entry) onComplete {
+                  case Success(v) =>
+                    calendar.patchAvailability(entry.times) onFailure {
+                      case ex => log.error(s"Failed to patch availability for user $userId, message ${ex.getMessage}")
+                    }
+                    sendJson(JsonUtil.getTextMessageJson("Ok I've canceled your appointment."))
+                    resetToMenuStatus
+                  case Failure(f) =>
+                    log.error(s"Failed to cancel appointment for user $userId, appointment $entry, message ${f.getMessage}")
+                    bigFail
+                }
+              case None =>
+                sendJson(JsonUtil.getTextMessageJson(s"Sorry I couldn't find anything for " +
+                  s" ${TimeUtils.dayFormat(dateTime.head)} at ${TimeUtils.timeFormat(dateTime.head)}. If you'd " +
+                  "like to see what you have scheduled use the \'View\' menu option."))
+            }
+          case Failure(ex) =>
+            log.error(s"Failed to get appointments from Google for user $userId, message ${ex.getMessage}")
+            bigFail
+        }
+      case bunch =>
+        log.debug(s"Parsed too many (or no) datetimes for cancelation userId: $userId")
+        sendJson(JsonUtil.getTextMessageJson("Sorry I don't understand. You can say things like /'tomorrow at 4 pm'/ " +
+          "or /'July 4th at 11 am/'."))
+    }
+  }
+
+  private def view(implicit userId: String) = {
+    calendar.getFutureCalendarAppointments(new DateTime().plusWeeks(2), userId) onComplete {
+      case Success(details) =>
+        val timeStrings = getDayTimeStrings(details.map(_.times))
+        sendJson(JsonUtil.getTextMessageJson(s"Here is a list of your lessons over the next two weeks:\n" +
+        s"$timeStrings"))
+        resetToMenuStatus
+      case Failure(ex) =>
+        log.error(s"Failed to get appointments from Google for user $userId, message ${ex.getMessage}")
+        bigFail
+    }
+  }
+
   private def default(implicit userId: String) = {
-    returnToMenu
+    resetToMenuStatus
   }
 
 }

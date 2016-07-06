@@ -13,4 +13,10 @@ object ActionStates extends Enumeration {
   val time = Value
   // Has been prompted to enter notes and contact info but has not yet
   val notes = Value
+  // Clicked the cancel button
+  val cancel = Value
+  // Has been prompted to enter the date and time to cancel but has not yet
+  val cancelDateTime = Value
+  // Clicked the view button
+  val view = Value
 }

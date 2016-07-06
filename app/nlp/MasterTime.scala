@@ -3,7 +3,7 @@ package nlp
 import edu.stanford.nlp.ling.CoreAnnotations
 import edu.stanford.nlp.pipeline._
 import edu.stanford.nlp.time._
-import org.joda.time.{DateTime, Period}
+import org.joda.time.{DateTime, Duration, Period}
 import java.util.Properties
 
 import edu.stanford.nlp.util.CoreMap
@@ -48,15 +48,15 @@ class MasterTime {
     })
   }
 
-  def getPeriods(text: String): Seq[Period] = {
+  def getDurations(text: String): Seq[Duration] = {
     parse(text).filter(timexAnn => {
       val timeExpr: TimeExpression = timexAnn.get(classOf[TimeExpression.Annotation])
       timeExpr.getValue.getType == duration
     }).map(timexAnn => {
       val timeExpr: TimeExpression = timexAnn.get(classOf[TimeExpression.Annotation])
-      val period= timeExpr.getTemporal.getDuration.getJodaTimePeriod
-      log.debug("Parsed period: " + TimeUtils.getHourMinutePeriodFormatter.print(period))
-      period
+      val duration = timeExpr.getTemporal.getDuration.getJodaTimeDuration
+      log.debug("Parsed period: " + TimeUtils.getHourMinutePeriodFormatter.print(duration.toPeriod))
+      duration
     })
   }
 }

@@ -88,7 +88,7 @@ class Application @Inject()(ws: WSClient, conf: Configuration, userDAO: UserDAO,
 
   private def postback(postback: Postback )(implicit sd: String): Unit = {
     log.debug("Postback")
-    val user = User(sd, ActionStates.schedule.toString)
+    val user = User(sd, postback.payload)
     actionResponder.respond(UserAction(user))
   }
 

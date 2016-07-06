@@ -47,7 +47,9 @@ object JsonUtil {
         Some(OutAttachment(
           "template",
           Payload("button", "What would you like to do?", List(
-            Button("postback", None, Some("Schedule a lesson."), Some("schedule"))
+            Button("postback", None, Some("Schedule a Lesson."), Some("schedule")),
+            Button("postback", None, Some("Cancel a Lesson"), Some("cancel")),
+            Button("postback", None, Some("View Lessons"), Some("view"))
           ))
         )), None)
     )
