@@ -34,7 +34,7 @@
     <logger name="nlp.MasterTime" level="DEBUG" />
     <logger name="google.CalendarTools" level="DEBUG" />
     <logger name="controllers.Application" level="DEBUG" />
-    <logger name="dao.UserDAO" level="DEBUG" />
+    <logger name="models.dao.UserDAO" level="DEBUG" />
 
     <logger name="com.gargoylesoftware.htmlunit.javascript" level="OFF" />
 

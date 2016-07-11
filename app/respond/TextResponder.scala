@@ -2,7 +2,7 @@ package respond
 
 import javax.inject.Inject
 
-import dao.UserDAO
+import models.dao.UserDAO
 import enums.ActionStates
 import models.UserAction
 import play.api.{Configuration, Logger}

@@ -2,11 +2,11 @@ package respond
 
 import javax.inject.Inject
 
-import dao.UserDAO
+import models.dao.UserDAO
 import enums.ActionStates
 import google.CalendarTools
 import models._
-import nlp.MasterTime
+import nlp.DateTimeParser
 import org.joda.time.DateTime
 import play.api.{Configuration, Logger}
 import play.api.libs.ws.WSClient
@@ -18,7 +18,7 @@ import scala.util.{Failure, Success}
 
 class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: WSClient,
                                 calendar: CalendarTools, override val conf: Configuration,
-                                masterTime: MasterTime)
+                                masterTime: DateTimeParser)
   extends Responder {
 
   override val log = Logger(this.getClass)
@@ -65,21 +65,28 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
   private def respondWithAvailability(day: DateTime, user: User)(implicit userId: String, log: Logger) = {
     val futureDay = TimeUtils.getFutureStartOfDay(day)
     log.debug("User: " + userId + " requested date: " + TimeUtils.isoFormat(futureDay))
-    val times = calendar.getAvailabilityForDay(futureDay)
-    log.debug("Found " + times.size + " availabilities for user: " + userId)
-    times.length match {
-      case 0 =>
-        sendJson(JsonUtil.getTextMessageJson(s"Britt has no availability " +
-          s"on ${TimeUtils.dayFormat(futureDay)}. What other day is good for you?"))
-      case bunch =>
-        userDAO.insertOrUpdate(User(userId, ActionStates.time.toString, Some(futureDay), user.eventId, user
-          .firstName, user.lastName)) onComplete {
-          case Success(_) =>
-            sendJson(JsonUtil.getTextMessageJson("Britt has the following times available "
-              + "on " + TimeUtils.dayFormat(futureDay) + ": " + getTimeRangeStrings(times) + "."))
-          case Failure(ex) => bigFail
+    calendar.getAvailabilityForDay(futureDay) onComplete {
+      case Success(times) =>
+        log.debug("Found " + times.size + " availabilities for user: " + userId)
+        times.length match {
+          case 0 =>
+            sendJson(JsonUtil.getTextMessageJson(s"Britt has no availability " +
+              s"on ${TimeUtils.dayFormat(futureDay)}. What other day is good for you?"))
+            bigFail
+          case bunch =>
+            userDAO.insertOrUpdate(User(userId, ActionStates.time.toString, Some(futureDay), user.eventId, user
+              .firstName, user.lastName)) onComplete {
+              case Success(_) =>
+                sendJson(JsonUtil.getTextMessageJson("Britt has the following times available "
+                  + "on " + TimeUtils.dayFormat(futureDay) + ": " + getTimeRangeStrings(times) + "."))
+              case Failure(ex) => bigFail
+            }
         }
+      case Failure(ex) =>
+        log.debug(s"Could not get availability for day ${TimeUtils.dayFormat(day)}, userId $userId, message ${ex
+          .getMessage}")
     }
+
   }
 
   private def time(user: User, text: String)(implicit userId: String, log: Logger) = {
@@ -132,9 +139,8 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
               case t if t <= 2 =>
                 val duration = times.reduceLeft(_.plus(_))
                 calendar.scheduleTime(time, duration, eventId, user.firstName.getOrElse("") + " " + user.lastName
-                  .getOrElse(""), userId)
-                match {
-                  case Some(appt) =>
+                  .getOrElse(""), userId) onComplete {
+                  case Success(appt) =>
                     userDAO.insertOrUpdate(User(userId, ActionStates.notes.toString, Some(appt.times.start), Some(appt
                       .eventId), user.firstName, user.lastName)).onComplete {
                       case Success(suc) =>
@@ -146,7 +152,8 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
                         log.error(s"Failed to persist user to menu action: $ex.getMessage")
                         bigFail
                     }
-                  case None =>
+                  case Failure(ex) => log.debug(s"Failed to schedule time ${TimeUtils.dayTimeFormat(time)} for user " +
+                    s"$userId with message ${ex.getMessage}")
                 }
               case bunch =>
                 log.debug(s"Parsed too many (or no) durations for user: $userId")
@@ -230,7 +237,7 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
       case Success(details) =>
         val timeStrings = getDayTimeStrings(details.map(_.times))
         sendJson(JsonUtil.getTextMessageJson(s"Here is a list of your lessons over the next two weeks:\n" +
-        s"$timeStrings"))
+          s"$timeStrings"))
         resetToMenuStatus
       case Failure(ex) =>
         log.error(s"Failed to get appointments from Google for user $userId, message ${ex.getMessage}")

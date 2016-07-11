@@ -27,11 +27,15 @@ val google = "com.google.api-client" % "google-api-client" % "1.19.1"
 
 val cal = "com.google.apis" % "google-api-services-calendar" % "v3-rev192-1.22.0"
 
+val guice = "net.codingwell" %% "scala-guice" % "4.0.0"
+
 libraryDependencies ++= Seq(cache , ws  , specs2 % Test,
   corenlp, corenlpmodels, joda, playslick, slickev, post, google, cal,
-  slickpg, jodapg )
+  slickpg, jodapg, guice )
 
 unmanagedResourceDirectories in Test <+=  baseDirectory ( _ /"target/web/public/test" )
+
+resolvers := ("Atlassian Releases" at "https://maven.atlassian.com/public/") +: resolvers.value
 
 resolvers += "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases"
 

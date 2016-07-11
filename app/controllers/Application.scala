@@ -5,7 +5,7 @@ import Preamble._
 import javax.inject.Inject
 
 import akka.util.ByteString
-import dao.UserDAO
+import models.dao.UserDAO
 import models._
 import play.api._
 import play.api.http.HttpEntity

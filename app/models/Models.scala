@@ -30,7 +30,7 @@ case class Payload(template_type: String, text: String, buttons: Seq[Button])
 case class User(id: String, action: String, timestamp: Option[Timestamp] = None,
                 eventId: Option[String] = None, firstName: Option[String] = None,
                 lastName: Option[String] = None)
-case class Appointments(userId: String, eventId: String)
+
 
 
 // Actions

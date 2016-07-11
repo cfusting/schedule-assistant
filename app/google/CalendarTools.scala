@@ -3,13 +3,12 @@ package google
 import javax.inject.Inject
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
-import com.google.api.client.http.HttpResponseException
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.calendar.model.Event.ExtendedProperties
 import com.google.api.services.calendar.model._
-import models.{Appointment, Appointments, Availability, TimeRange}
-import org.joda.time.{DateTime, Duration, Period}
+import models.{Appointment, Availability, TimeRange}
+import org.joda.time.{DateTime, Duration}
 import play.api.{Configuration, Logger}
 import utilities.TimeUtils
 import utilities.TimeUtils._
@@ -40,9 +39,11 @@ class CalendarTools @Inject()(conf: Configuration) {
   ).setApplicationName("Scheduler")
     .build()
 
-  def getAvailabilityForDay(day: DateTime): Seq[TimeRange] = {
-    getAvailableEventsForDay(day).map { event =>
-      TimeRange(event.getStart.getDateTime, event.getEnd.getDateTime)
+  def getAvailabilityForDay(day: DateTime): Future[Seq[TimeRange]] = {
+    Future {
+      getAvailableEventsForDay(day).map { event =>
+        TimeRange(event.getStart.getDateTime, event.getEnd.getDateTime)
+      }
     }
   }
 
@@ -58,7 +59,7 @@ class CalendarTools @Inject()(conf: Configuration) {
       .setTimeMax(range.end)
       .setOrderBy("startTime")
       .setSingleEvents(true)
-      .execute()
+      .execute
   }
 
   def googleStartEnd(day: DateTime): TimeRange = {
@@ -89,8 +90,8 @@ class CalendarTools @Inject()(conf: Configuration) {
     * @return
     */
   def scheduleTime(appointmentStartTime: DateTime, duration: Duration, eventId: String, userName: String,
-                   userId: String): Option[Appointment] = {
-    try {
+                   userId: String): Future[Appointment] = {
+    Future {
       val appointmentEndTime = appointmentStartTime.withDurationAdded(duration.getMillis, 1)
       val event = service.events.get(primaryCalendar, eventId).execute
       if (isTimeInWindow(appointmentStartTime, event) && isTimeInWindow(appointmentEndTime, event)) {
@@ -100,14 +101,10 @@ class CalendarTools @Inject()(conf: Configuration) {
           service.events.insert(primaryCalendar, x).execute
         }
         val aptId = apt.filter(_.getSummary != available).head.getId
-        Some(Appointment(aptId, TimeRange(appointmentStartTime, appointmentEndTime)))
+        Appointment(aptId, TimeRange(appointmentStartTime, appointmentEndTime))
       } else {
-        None
+        throw new Exception("Time is no longer available")
       }
-    } catch {
-      case e: Exception =>
-        log.error("Failed to schedule appointment for user: " + userName + " message " + e.getMessage)
-        None
     }
   }
 
@@ -148,10 +145,12 @@ class CalendarTools @Inject()(conf: Configuration) {
     events
   }
 
-  def updateEvent(eventId: String, notes: String) = {
-    log.debug(s"Updating event $eventId with notes $notes")
-    val event = new Event().setDescription(notes)
-    service.events.patch(primaryCalendar, eventId, event).execute
+  def updateEvent(eventId: String, notes: String): Future[Unit] = {
+    Future {
+      log.debug(s"Updating event $eventId with notes $notes")
+      val event = new Event().setDescription(notes)
+      service.events.patch(primaryCalendar, eventId, event).execute
+    }
   }
 
   def getFutureCalendarAppointments(endTime: DateTime, userId: String): Future[Seq[Appointment]] = {
@@ -164,13 +163,15 @@ class CalendarTools @Inject()(conf: Configuration) {
         .setSingleEvents(true)
         .execute
         .getItems
-      events.filter { x =>
-        Try(x.getExtendedProperties.getShared.get(userIdKey)) match {
-          case Success(key) => key == userId
-          case Failure(ex) => false
-        }
-      }.map { event =>
-        Appointment(event.getId, TimeRange(event.getStart.getDateTime, event.getEnd.getDateTime))
+      events.filter {
+        x =>
+          Try(x.getExtendedProperties.getShared.get(userIdKey)) match {
+            case Success(key) => key == userId
+            case Failure(ex) => false
+          }
+      }.map {
+        event =>
+          Appointment(event.getId, TimeRange(event.getStart.getDateTime, event.getEnd.getDateTime))
       }
     }
   }
@@ -193,15 +194,16 @@ class CalendarTools @Inject()(conf: Configuration) {
         .getItems
       val newAvailability = new Event().setSummary(available)
         .setDescription("Automatically generated when patching availability.")
-      events foreach { event =>
-        if (TimeUtils.googleDateTime2dateTime(event.getEnd.getDateTime).equals(timeRange.start)) {
-          newAvailability.setStart(event.getStart)
-          service.events.delete(primaryCalendar, event.getId).execute
-        }
-        if (TimeUtils.googleDateTime2dateTime(event.getStart.getDateTime).equals(timeRange.end)) {
-          newAvailability.setEnd(event.getEnd)
-          service.events.delete(primaryCalendar, event.getId).execute
-        }
+      events foreach {
+        event =>
+          if (TimeUtils.googleDateTime2dateTime(event.getEnd.getDateTime).equals(timeRange.start)) {
+            newAvailability.setStart(event.getStart)
+            service.events.delete(primaryCalendar, event.getId).execute
+          }
+          if (TimeUtils.googleDateTime2dateTime(event.getStart.getDateTime).equals(timeRange.end)) {
+            newAvailability.setEnd(event.getEnd)
+            service.events.delete(primaryCalendar, event.getId).execute
+          }
       }
       if (newAvailability.getStart == null) newAvailability.setStart(new EventDateTime().setDateTime(timeRange.start))
       if (newAvailability.getEnd == null) newAvailability.setEnd(new EventDateTime().setDateTime(timeRange.end))

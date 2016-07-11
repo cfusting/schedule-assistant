@@ -13,7 +13,7 @@ import org.joda.time.format.ISODateTimeFormat
 import play.api.Logger
 import utilities.TimeUtils
 
-class MasterTime {
+class MasterTime extends DateTimeParser {
 
   val log = Logger(this.getClass)
 

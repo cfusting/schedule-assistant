@@ -1,6 +1,6 @@
 package respond
 
-import dao.UserDAO
+import models.dao.UserDAO
 import enums.ActionStates
 import models.User
 import play.api.Logger
