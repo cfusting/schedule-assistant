@@ -24,10 +24,6 @@ class Application @Inject()(ws: WSClient, conf: Configuration, userDAO: UserDAO,
 
   val log = Logger(this.getClass)
 
-  def index = Action {
-    Ok(views.html.index("Your new application is ready."))
-  }
-
   def webhook = Action {
     implicit request =>
       log.info("request: " + request.body)
