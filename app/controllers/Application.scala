@@ -1,28 +1,69 @@
 package controllers
 
-import enums._
 import Preamble._
 import javax.inject.Inject
 
 import akka.util.ByteString
-import models.dao.UserDAO
+import com.mohiva.play.silhouette.api.exceptions.ProviderException
+import com.mohiva.play.silhouette.api.repositories.AuthInfoRepository
+import com.mohiva.play.silhouette.api.{LoginEvent, Silhouette}
+import com.mohiva.play.silhouette.impl.providers.{CommonSocialProfileBuilder, SocialProvider, SocialProviderRegistry}
 import models._
+import models.services.UserService
 import play.api._
 import play.api.http.HttpEntity
 import play.api.libs.json._
-import play.api.libs.ws.{WSClient, WSResponse}
+import play.api.libs.ws.WSClient
 import play.api.mvc._
 
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 import play.api.data.validation.ValidationError
 import respond.{ActionResponder, TextResponder}
+import silhouette.CookieEnv
 
-class Application @Inject()(ws: WSClient, conf: Configuration, userDAO: UserDAO,
-                            actionResponder: ActionResponder, textResponder: TextResponder)
+class Application @Inject()(ws: WSClient, conf: Configuration, actionResponder: ActionResponder,
+                            textResponder: TextResponder, sil: Silhouette[CookieEnv],
+                            socialProviderRegistry: SocialProviderRegistry, userService: UserService,
+                            authInfoRepository: AuthInfoRepository)
   extends Controller {
 
   val log = Logger(this.getClass)
+
+  def index = Action {
+    Ok(views.html.index())
+  }
+
+  def authenticated = sil.SecuredAction { implicit request =>
+    Ok(views.html.authenticated())
+  }
+
+  def connect(provider: String) = sil.SecuredAction.async { implicit request =>
+    (socialProviderRegistry.get[SocialProvider](provider) match {
+      case Some(p: SocialProvider with CommonSocialProfileBuilder) =>
+        p.authenticate().flatMap {
+          case Left(result) => Future.successful(result)
+          case Right(authInfo) => for {
+            profile <- p.retrieveProfile(authInfo)
+            user <- userService.linkProviderToUser(request.identity.loginInfo.head, profile.loginInfo)
+            authInfo <- authInfoRepository.save(profile.loginInfo, authInfo)
+            result <- Future(Redirect(routes.Application.connected()))
+          } yield {
+            result
+          }
+        }
+      case _ => Future.failed(new ProviderException(s"Cannot authenticate with unexpected social provider $provider"))
+    }).recover {
+      case e: ProviderException =>
+        log.error("Unexpected provider error", e)
+        Redirect(routes.Application.index()).flashing("error" -> "could.not.authenticate")
+    }
+  }
+
+  def connected = sil.SecuredAction {
+    implicit request =>
+      Ok("Connected with Facebook!")
+  }
 
   def webhook = Action {
     implicit request =>
@@ -82,9 +123,9 @@ class Application @Inject()(ws: WSClient, conf: Configuration, userDAO: UserDAO,
     Ok("Delivery confirmation confirmed.")
   }
 
-  private def postback(postback: Postback )(implicit sd: String): Unit = {
+  private def postback(postback: Postback)(implicit sd: String): Unit = {
     log.debug("Postback")
-    val user = User(sd, postback.payload)
+    val user = Botuser(sd, postback.payload)
     actionResponder.respond(UserAction(user))
   }
 

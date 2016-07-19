@@ -2,7 +2,7 @@ package respond
 
 import javax.inject.Inject
 
-import models.dao.UserDAO
+import models.daos.BotuserDAO
 import enums.ActionStates
 import google.CalendarTools
 import models._
@@ -16,7 +16,7 @@ import utilities.TimeUtils._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
-class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: WSClient,
+class ActionResponder @Inject()(override val userDAO: BotuserDAO, override val ws: WSClient,
                                 calendar: CalendarTools, override val conf: Configuration,
                                 masterTime: DateTimeParser)
   extends Responder {
@@ -43,7 +43,7 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
   }
 
   private def schedule(implicit userId: String) = {
-    val user = User(userId, ActionStates.day.toString)
+    val user = Botuser(userId, ActionStates.day.toString)
     userDAO.insertOrUpdate(user) onSuccess {
       case _ => sendJson(JsonUtil.getTextMessageJson("What day are you interested in? " +
         "You can say things like \"tomorrow \" or \"next Friday\""))
@@ -51,7 +51,7 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
     }
   }
 
-  private def day(user: User, text: String)(implicit userId: String, log: Logger) = {
+  private def day(user: Botuser, text: String)(implicit userId: String, log: Logger) = {
     val dates = masterTime.getDateTimes(text)
     dates.length match {
       case 1 => respondWithAvailability(dates.head, user)
@@ -62,7 +62,7 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
   }
 
 
-  private def respondWithAvailability(day: DateTime, user: User)(implicit userId: String, log: Logger) = {
+  private def respondWithAvailability(day: DateTime, user: Botuser)(implicit userId: String, log: Logger) = {
     val futureDay = TimeUtils.getFutureStartOfDay(day)
     log.debug("User: " + userId + " requested date: " + TimeUtils.isoFormat(futureDay))
     calendar.getAvailabilityForDay(futureDay) onComplete {
@@ -74,7 +74,7 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
               s"on ${TimeUtils.dayFormat(futureDay)}. What other day is good for you?"))
             bigFail
           case bunch =>
-            userDAO.insertOrUpdate(User(userId, ActionStates.time.toString, Some(futureDay), user.eventId, user
+            userDAO.insertOrUpdate(Botuser(userId, ActionStates.time.toString, Some(futureDay), user.eventId, user
               .firstName, user.lastName)) onComplete {
               case Success(_) =>
                 sendJson(JsonUtil.getTextMessageJson("Britt has the following times available "
@@ -89,7 +89,7 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
 
   }
 
-  private def time(user: User, text: String)(implicit userId: String, log: Logger) = {
+  private def time(user: Botuser, text: String)(implicit userId: String, log: Logger) = {
     user.timestamp match {
       case Some(day) =>
         val times = masterTime.getDateTimes(text)
@@ -117,8 +117,8 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
     }
   }
 
-  private def matchAvailability(avail: Availability, user: User)(implicit userId: String, log: Logger) = {
-    userDAO.insertOrUpdate(User(userId, ActionStates.duration.toString,
+  private def matchAvailability(avail: Availability, user: Botuser)(implicit userId: String, log: Logger) = {
+    userDAO.insertOrUpdate(Botuser(userId, ActionStates.duration.toString,
       Some(avail.userTime), Some(avail.eventId), user.firstName, user.lastName)) onComplete {
       case Success(suc) =>
         sendJson(JsonUtil.getTextMessageJson("Ok. How long a lesson would you like? Britt has at most "
@@ -129,7 +129,7 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
     }
   }
 
-  private def duration(user: User, text: String)(implicit userId: String, log: Logger) = {
+  private def duration(user: Botuser, text: String)(implicit userId: String, log: Logger) = {
     user.timestamp match {
       case Some(time) =>
         user.eventId match {
@@ -141,7 +141,7 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
                 calendar.scheduleTime(time, duration, eventId, user.firstName.getOrElse("") + " " + user.lastName
                   .getOrElse(""), userId) onComplete {
                   case Success(appt) =>
-                    userDAO.insertOrUpdate(User(userId, ActionStates.notes.toString, Some(appt.times.start), Some(appt
+                    userDAO.insertOrUpdate(Botuser(userId, ActionStates.notes.toString, Some(appt.times.start), Some(appt
                       .eventId), user.firstName, user.lastName)).onComplete {
                       case Success(suc) =>
                         sendJson(JsonUtil.getTextMessageJson("Ok I've got you down for " +
@@ -175,7 +175,7 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
   }
 
 
-  private def notes(user: User, text: String)(implicit userId: String) = {
+  private def notes(user: Botuser, text: String)(implicit userId: String) = {
     user.eventId match {
       case Some(eventId) =>
         calendar.updateEvent(eventId, text)
@@ -189,7 +189,7 @@ class ActionResponder @Inject()(override val userDAO: UserDAO, override val ws: 
   }
 
   private def cancel(implicit userId: String) = {
-    userDAO.insertOrUpdate(User(userId, ActionStates.cancelDateTime.toString)) onComplete {
+    userDAO.insertOrUpdate(Botuser(userId, ActionStates.cancelDateTime.toString)) onComplete {
       case Success(notta) =>
         sendJson(JsonUtil.getTextMessageJson("What day and time would you like to cancel?"))
       case Failure(ex) =>

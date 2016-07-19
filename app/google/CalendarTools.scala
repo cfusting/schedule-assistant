@@ -31,7 +31,9 @@ class CalendarTools @Inject()(conf: Configuration) {
   val credential = new GoogleCredential.Builder()
     .setJsonFactory(jsonFactory)
     .setTransport(httpTransport)
-    .setClientSecrets(conf.underlying.getString("client.id"), conf.underlying.getString("client.secret"))
+    .setClientSecrets(conf.underlying.getString("silhouette.google.clientID"), conf.underlying.getString("silhouette" +
+      ".google" +
+      ".clientSecret"))
     .build()
     .setAccessToken(conf.underlying.getString("client.access.token"))
   val service = new com.google.api.services.calendar.Calendar.Builder(
@@ -192,6 +194,7 @@ class CalendarTools @Inject()(conf: Configuration) {
         .setSingleEvents(true)
         .execute
         .getItems
+        .filter(_.getSummary == available)
       val newAvailability = new Event().setSummary(available)
         .setDescription("Automatically generated when patching availability.")
       events foreach {

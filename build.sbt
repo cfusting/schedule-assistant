@@ -12,7 +12,6 @@ val corenlpmodels = "edu.stanford.nlp" % "stanford-corenlp" % "3.6.0" classifier
 
 val joda = "joda-time" % "joda-time" % "2.9.4"
 
-//val h2 = "com.h2database" % "h2" % "1.4.187"
 val post = "org.postgresql" % "postgresql" % "9.4.1208.jre7"
 
 val slickpg = "com.github.tminglei" %% "slick-pg" % "0.14.1"
@@ -29,14 +28,22 @@ val cal = "com.google.apis" % "google-api-services-calendar" % "v3-rev192-1.22.0
 
 val guice = "net.codingwell" %% "scala-guice" % "4.0.0"
 
-libraryDependencies ++= Seq(cache , ws  , specs2 % Test,
-  corenlp, corenlpmodels, joda, playslick, slickev, post, google, cal,
-  slickpg, jodapg, guice )
+val silho = "com.mohiva" %% "play-silhouette" % "4.0.0-RC1"
+
+val silper = "com.mohiva" % "play-silhouette-persistence_2.11" % "4.0.0-RC1"
+
+val silcry = "com.mohiva" % "play-silhouette-password-bcrypt_2.11" % "4.0.0-RC1"
+
+val silcrypto = "com.mohiva" % "play-silhouette-crypto-jca_2.11" % "4.0.0-RC1"
+
+val ficus = "net.ceedubs" %% "ficus" % "1.1.2"
+
+libraryDependencies ++= Seq(cache , ws  , specs2 % Test, slickev,
+  corenlp, corenlpmodels, joda, playslick, post, google, cal,
+  slickpg, jodapg, guice, silho, ficus, silper, silcry, silcrypto)
 
 unmanagedResourceDirectories in Test <+=  baseDirectory ( _ /"target/web/public/test" )
 
 resolvers := ("Atlassian Releases" at "https://maven.atlassian.com/public/") +: resolvers.value
 
 resolvers += "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases"
-
-herokuAppName in Compile := "cryptic-gorge-10562"

@@ -7,7 +7,7 @@ import nlp.{DateTimeParser, MasterTime}
 class BotModule extends AbstractModule with ScalaModule {
 
   override def configure() = {
-    bind[DateTimeParser].to[MasterTime].asEagerSingleton()
+    bind[DateTimeParser].to[MasterTime]
   }
 
 }

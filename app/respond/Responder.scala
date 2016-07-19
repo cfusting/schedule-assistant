@@ -1,8 +1,8 @@
 package respond
 
-import models.dao.UserDAO
+import models.daos.BotuserDAO
 import enums.ActionStates
-import models.User
+import models.Botuser
 import play.api.Logger
 import play.api.Configuration
 import play.api.libs.json.JsValue
@@ -16,12 +16,12 @@ trait Responder {
 
   val conf: Configuration
   val ws: WSClient
-  val userDAO: UserDAO
+  val userDAO: BotuserDAO
   val log: Logger
 
   def bigFail(implicit userId: String) = {
     log.error(s"Big Fail. Sending user $userId back to menu")
-    userDAO.insertOrUpdate(User(userId, ActionStates.menu.toString))
+    userDAO.insertOrUpdate(Botuser(userId, ActionStates.menu.toString))
     sendJson(JsonUtil.getTextMessageJson("Dang! Something has gone wrong. Let's start over."))
     sendJson(JsonUtil.getMenuJson(userId))
   }
@@ -32,7 +32,7 @@ trait Responder {
       .post(json)
   }
 
-  def storeUserName(user: User)(implicit userId: String) = {
+  def storeUserName(user: Botuser)(implicit userId: String) = {
     ws.url(getConf("profile.url") + userId)
       .withQueryString("access_token" -> getConf("thepenguin.token"))
       .get
@@ -47,6 +47,6 @@ trait Responder {
   def getConf(prop: String) = conf.underlying.getString(prop)
 
   def resetToMenuStatus(implicit userId: String) = {
-    userDAO.insertOrUpdate(User(userId, ActionStates.menu.toString))
+    userDAO.insertOrUpdate(Botuser(userId, ActionStates.menu.toString))
   }
 }

@@ -6,6 +6,7 @@ import edu.stanford.nlp.time._
 import org.joda.time.{DateTime, Duration, Period}
 import java.util.Properties
 
+import com.google.inject.Singleton
 import edu.stanford.nlp.util.CoreMap
 
 import scala.collection.JavaConversions._
@@ -13,6 +14,7 @@ import org.joda.time.format.ISODateTimeFormat
 import play.api.Logger
 import utilities.TimeUtils
 
+@Singleton
 class MasterTime extends DateTimeParser {
 
   val log = Logger(this.getClass)

@@ -2,7 +2,7 @@ package respond
 
 import javax.inject.Inject
 
-import models.dao.UserDAO
+import models.daos.BotuserDAO
 import enums.ActionStates
 import models.UserAction
 import play.api.{Configuration, Logger}
@@ -13,7 +13,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
 class TextResponder @Inject()(override val conf: Configuration, override val ws: WSClient,
-                              override val userDAO: UserDAO, actionResponder: ActionResponder) extends Responder {
+                              override val userDAO: BotuserDAO, actionResponder: ActionResponder) extends Responder {
 
   override val log = Logger(this.getClass)
 

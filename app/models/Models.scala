@@ -27,14 +27,14 @@ case class OutAttachment(typ: String, payload: Payload)
 case class Payload(template_type: String, text: String, buttons: Seq[Button])
 
 // Tables
-case class User(id: String, action: String, timestamp: Option[Timestamp] = None,
-                eventId: Option[String] = None, firstName: Option[String] = None,
-                lastName: Option[String] = None)
+case class Botuser(id: String, action: String, timestamp: Option[Timestamp] = None,
+                   eventId: Option[String] = None, firstName: Option[String] = None,
+                   lastName: Option[String] = None)
 
 
 
 // Actions
-case class UserAction(user: User, text: String = "")
+case class UserAction(user: Botuser, text: String = "")
 
 // Time Stuff
 case class TimeRange(start: DateTime, end: DateTime)
