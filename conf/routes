@@ -9,6 +9,8 @@ GET     /authorized                 controllers.Application.authenticated
 
 GET     /facebookConnected          controllers.Application.connected
 
+POST    /complete                   controllers.Application.complete
+
 #Facebook hooks
 GET     /webhook                    controllers.Application.webhook
 

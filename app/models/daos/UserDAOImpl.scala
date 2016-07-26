@@ -26,7 +26,8 @@ class UserDAOImpl @Inject()(protected val dbConfigProvider: DatabaseConfigProvid
   def find(loginInfo: LoginInfo) = {
     val userQuery = for {
       initialDbLoginInfo <- loginInfoQuery(loginInfo)
-      dbUserLoginInfo <- slickUserLoginInfos.filter(_.loginInfoId === initialDbLoginInfo.id)
+      initialDbUserLoginInfo <- slickUserLoginInfos.filter(_.loginInfoId === initialDbLoginInfo.id)
+      dbUserLoginInfo <- slickUserLoginInfos.filter(_.userID === initialDbUserLoginInfo.userID)
       dbLoginInfo <- slickLoginInfos.filter(_.id === dbUserLoginInfo.loginInfoId)
       dbUser <- slickUsers.filter(_.id === dbUserLoginInfo.userID)
     } yield (dbUser, dbLoginInfo)

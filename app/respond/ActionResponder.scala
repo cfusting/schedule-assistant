@@ -1,7 +1,5 @@
 package respond
 
-import javax.inject.Inject
-
 import models.daos.BotuserDAO
 import enums.ActionStates
 import google.CalendarTools
@@ -16,9 +14,9 @@ import utilities.TimeUtils._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
-class ActionResponder @Inject()(override val userDAO: BotuserDAO, override val ws: WSClient,
-                                calendar: CalendarTools, override val conf: Configuration,
-                                masterTime: DateTimeParser)
+class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClient,
+                       override val conf: Configuration, masterTime: DateTimeParser,
+                       override val calendarTools: CalendarTools, override val facebookPageToken: String)
   extends Responder {
 
   override val log = Logger(this.getClass)
@@ -61,18 +59,16 @@ class ActionResponder @Inject()(override val userDAO: BotuserDAO, override val w
     }
   }
 
-
   private def respondWithAvailability(day: DateTime, user: Botuser)(implicit userId: String, log: Logger) = {
     val futureDay = TimeUtils.getFutureStartOfDay(day)
     log.debug("User: " + userId + " requested date: " + TimeUtils.isoFormat(futureDay))
-    calendar.getAvailabilityForDay(futureDay) onComplete {
+    calendarTools.getAvailabilityForDay(futureDay) onComplete {
       case Success(times) =>
         log.debug("Found " + times.size + " availabilities for user: " + userId)
         times.length match {
           case 0 =>
             sendJson(JsonUtil.getTextMessageJson(s"Britt has no availability " +
               s"on ${TimeUtils.dayFormat(futureDay)}. What other day is good for you?"))
-            bigFail
           case bunch =>
             userDAO.insertOrUpdate(Botuser(userId, ActionStates.time.toString, Some(futureDay), user.eventId, user
               .firstName, user.lastName)) onComplete {
@@ -96,7 +92,7 @@ class ActionResponder @Inject()(override val userDAO: BotuserDAO, override val w
         times.length match {
           case 1 =>
             val time = times.head.withDate(day.toLocalDate)
-            val avails = calendar.matchAvailabilityForTime(time)
+            val avails = calendarTools.matchAvailabilityForTime(time)
             avails.length match {
               case 0 =>
                 sendJson(JsonUtil.getTextMessageJson("Sorry Britt is not available during that time. Try a time " +
@@ -138,7 +134,7 @@ class ActionResponder @Inject()(override val userDAO: BotuserDAO, override val w
             times.length match {
               case t if t <= 2 =>
                 val duration = times.reduceLeft(_.plus(_))
-                calendar.scheduleTime(time, duration, eventId, user.firstName.getOrElse("") + " " + user.lastName
+                calendarTools.scheduleTime(time, duration, eventId, user.firstName.getOrElse("") + " " + user.lastName
                   .getOrElse(""), userId) onComplete {
                   case Success(appt) =>
                     userDAO.insertOrUpdate(Botuser(userId, ActionStates.notes.toString, Some(appt.times.start), Some(appt
@@ -178,7 +174,7 @@ class ActionResponder @Inject()(override val userDAO: BotuserDAO, override val w
   private def notes(user: Botuser, text: String)(implicit userId: String) = {
     user.eventId match {
       case Some(eventId) =>
-        calendar.updateEvent(eventId, text)
+        calendarTools.updateEvent(eventId, text)
         sendJson(JsonUtil.getTextMessageJson("Ok Britt will be notified of your lesson and given your notes. Have a" +
           " great day!"))
         resetToMenuStatus
@@ -201,13 +197,13 @@ class ActionResponder @Inject()(override val userDAO: BotuserDAO, override val w
     val dateTime = masterTime.getDateTimes(text)
     dateTime.length match {
       case 1 =>
-        calendar.getFutureCalendarAppointments(new DateTime().plusWeeks(2), userId) onComplete {
+        calendarTools.getFutureCalendarAppointments(new DateTime().plusWeeks(2), userId) onComplete {
           case Success(suc) =>
             suc.find(_.times.start.isEqual(dateTime.head)) match {
               case Some(entry) =>
-                calendar.cancelAppointment(entry) onComplete {
+                calendarTools.cancelAppointment(entry) onComplete {
                   case Success(v) =>
-                    calendar.patchAvailability(entry.times) onFailure {
+                    calendarTools.patchAvailability(entry.times) onFailure {
                       case ex => log.error(s"Failed to patch availability for user $userId, message ${ex.getMessage}")
                     }
                     sendJson(JsonUtil.getTextMessageJson("Ok I've canceled your appointment."))
@@ -233,7 +229,7 @@ class ActionResponder @Inject()(override val userDAO: BotuserDAO, override val w
   }
 
   private def view(implicit userId: String) = {
-    calendar.getFutureCalendarAppointments(new DateTime().plusWeeks(2), userId) onComplete {
+    calendarTools.getFutureCalendarAppointments(new DateTime().plusWeeks(2), userId) onComplete {
       case Success(details) =>
         val timeStrings = getDayTimeStrings(details.map(_.times))
         sendJson(JsonUtil.getTextMessageJson(s"Here is a list of your lessons over the next two weeks:\n" +

@@ -1,7 +1,5 @@
 package google
 
-import javax.inject.Inject
-
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
@@ -18,24 +16,23 @@ import scala.collection.JavaConversions._
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-class CalendarTools @Inject()(conf: Configuration) {
+class CalendarTools(conf: Configuration, accessToken: String, refreshToken: String, calendar: String) {
 
   val log = Logger(this.getClass)
   val availabilityCode = "0"
-  val primaryCalendar = "primary"
   val userIdKey = "userId"
   val available = "Available"
-
   val jsonFactory = new JacksonFactory()
   val httpTransport = new NetHttpTransport()
+
   val credential = new GoogleCredential.Builder()
     .setJsonFactory(jsonFactory)
     .setTransport(httpTransport)
-    .setClientSecrets(conf.underlying.getString("silhouette.google.clientID"), conf.underlying.getString("silhouette" +
-      ".google" +
-      ".clientSecret"))
+    .setClientSecrets(conf.underlying.getString("silhouette.google.clientID"),
+      conf.underlying.getString("silhouette" + ".google" + ".clientSecret"))
     .build()
-    .setAccessToken(conf.underlying.getString("client.access.token"))
+    .setAccessToken(accessToken)
+    .setRefreshToken(refreshToken)
   val service = new com.google.api.services.calendar.Calendar.Builder(
     httpTransport, jsonFactory, credential
   ).setApplicationName("Scheduler")
@@ -56,7 +53,7 @@ class CalendarTools @Inject()(conf: Configuration) {
 
   private def getEventsForDay(day: DateTime): Events = {
     val range = googleStartEnd(day)
-    service.events.list(primaryCalendar)
+    service.events.list(calendar)
       .setTimeMin(range.start)
       .setTimeMax(range.end)
       .setOrderBy("startTime")
@@ -95,12 +92,12 @@ class CalendarTools @Inject()(conf: Configuration) {
                    userId: String): Future[Appointment] = {
     Future {
       val appointmentEndTime = appointmentStartTime.withDurationAdded(duration.getMillis, 1)
-      val event = service.events.get(primaryCalendar, eventId).execute
+      val event = service.events.get(calendar, eventId).execute
       if (isTimeInWindow(appointmentStartTime, event) && isTimeInWindow(appointmentEndTime, event)) {
-        service.events.delete(primaryCalendar, eventId).execute
+        service.events.delete(calendar, eventId).execute
         val events = partitionAvailability(event, appointmentStartTime, appointmentEndTime, userName, userId)
         val apt = events map { x =>
-          service.events.insert(primaryCalendar, x).execute
+          service.events.insert(calendar, x).execute
         }
         val aptId = apt.filter(_.getSummary != available).head.getId
         Appointment(aptId, TimeRange(appointmentStartTime, appointmentEndTime))
@@ -151,14 +148,14 @@ class CalendarTools @Inject()(conf: Configuration) {
     Future {
       log.debug(s"Updating event $eventId with notes $notes")
       val event = new Event().setDescription(notes)
-      service.events.patch(primaryCalendar, eventId, event).execute
+      service.events.patch(calendar, eventId, event).execute
     }
   }
 
   def getFutureCalendarAppointments(endTime: DateTime, userId: String): Future[Seq[Appointment]] = {
     Future[Seq[Appointment]] {
       val now = new DateTime()
-      val events = service.events.list(primaryCalendar)
+      val events = service.events.list(calendar)
         .setTimeMin(now)
         .setTimeMax(endTime)
         .setOrderBy("startTime")
@@ -180,14 +177,14 @@ class CalendarTools @Inject()(conf: Configuration) {
 
   def cancelAppointment(apt: Appointment)(implicit userId: String): Future[Unit] = {
     Future[Unit] {
-      service.events.delete(primaryCalendar, apt.eventId).execute
+      service.events.delete(calendar, apt.eventId).execute
       Unit
     }
   }
 
   def patchAvailability(timeRange: TimeRange)(implicit userId: String): Future[Unit] = {
     Future {
-      val events = service.events.list(primaryCalendar)
+      val events = service.events.list(calendar)
         .setTimeMax(timeRange.end.plusSeconds(1))
         .setTimeMin(timeRange.start.minusSeconds(1))
         .setOrderBy("startTime")
@@ -201,16 +198,16 @@ class CalendarTools @Inject()(conf: Configuration) {
         event =>
           if (TimeUtils.googleDateTime2dateTime(event.getEnd.getDateTime).equals(timeRange.start)) {
             newAvailability.setStart(event.getStart)
-            service.events.delete(primaryCalendar, event.getId).execute
+            service.events.delete(calendar, event.getId).execute
           }
           if (TimeUtils.googleDateTime2dateTime(event.getStart.getDateTime).equals(timeRange.end)) {
             newAvailability.setEnd(event.getEnd)
-            service.events.delete(primaryCalendar, event.getId).execute
+            service.events.delete(calendar, event.getId).execute
           }
       }
       if (newAvailability.getStart == null) newAvailability.setStart(new EventDateTime().setDateTime(timeRange.start))
       if (newAvailability.getEnd == null) newAvailability.setEnd(new EventDateTime().setDateTime(timeRange.end))
-      service.events.insert(primaryCalendar, newAvailability).execute
+      service.events.insert(calendar, newAvailability).execute
     }
   }
 }

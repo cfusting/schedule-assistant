@@ -4,9 +4,10 @@ import java.util.UUID
 import javax.inject.Inject
 
 import com.mohiva.play.silhouette.api.LoginInfo
+import com.mohiva.play.silhouette.api.exceptions.ProviderException
 import com.mohiva.play.silhouette.impl.providers.{CommonSocialProfile, OAuth2Info}
 import models.User
-import models.daos.UserDAO
+import models.daos.{OAuth2InfoDAO, UserDAO}
 import play.api.libs.concurrent.Execution.Implicits._
 
 import scala.concurrent.Future
@@ -16,7 +17,7 @@ import scala.concurrent.Future
  *
  * @param userDAO The user DAO implementation.
  */
-class UserServiceImpl @Inject() (userDAO: UserDAO) extends UserService {
+class UserServiceImpl @Inject() (userDAO: UserDAO, oAuth2InfoDAO: OAuth2InfoDAO) extends UserService {
 
   /**
    * Retrieves a user that matches the specified login info.
@@ -76,11 +77,13 @@ class UserServiceImpl @Inject() (userDAO: UserDAO) extends UserService {
         user.email,
         user.avatarURL
       ))
-      case None => Future.failed(new Exception(s"Could not find user with login info: $userLoginInfo"))
+      case None => Future.failed(new ProviderException(s"Could not find user with login info: $userLoginInfo"))
     }
   }
 
   override def find(loginInfo: LoginInfo): Future[Option[User]] = userDAO.find(loginInfo)
 
-  override def retrieveFacebookOAuth(loginInfo: LoginInfo): Future[Option[OAuth2Info]] = ???
+  override def retrieveOAuthInfo(loginInfo: LoginInfo): Future[Option[OAuth2Info]] = {
+    oAuth2InfoDAO.find(loginInfo)
+  }
 }

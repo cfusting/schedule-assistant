@@ -66,6 +66,15 @@ create table openidattributes (
   value text NOT NULL
 );
 
+create table googletofacebookpage (
+  googlelogininfoid bigint NOT NULL,
+  facebookpageid bigint NOT NULL,
+  accesstoken text NOT NULL,
+  active boolean NOT NULL,
+  calendarname text NOT NULL,
+  CONSTRAINT googlelogininfoid_facebookpageid_pk PRIMARY KEY (googlelogininfoid, facebookpageid)
+);
+
 # --- !Downs
 
 drop table if exists bot_users;
@@ -77,3 +86,4 @@ drop table if exists oauth2info;
 drop table if exists userlogininfo;
 drop table if exists openidinfo;
 drop table if exists openidattributes;
+drop table if exists googletofacebookpage;

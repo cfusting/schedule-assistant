@@ -1,0 +1,10 @@
+@(facebookPageForm: Form[FacebookPageForm], facebookPageOptions: Seq[(String, String)])(implicit messages: Messages)
+
+@helper.form(action = routes.Application.complete()) {
+    @helper.inputRadioGroup(
+        facebookPageForm("pageId"),
+        options = facebookPageOptions,
+        '_label -> "Page Selection"
+    )
+    <button type="submit">Submit</button>
+}

@@ -36,6 +36,6 @@ trait UserService extends IdentityService[User] {
 
   def find(loginInfo: LoginInfo): Future[Option[User]]
 
-  def retrieveFacebookOAuth(loginInfo: LoginInfo): Future[Option[OAuth2Info]]
+  def retrieveOAuthInfo(loginInfo: LoginInfo): Future[Option[OAuth2Info]]
 
 }

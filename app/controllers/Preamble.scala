@@ -91,6 +91,15 @@ object Preamble {
     (JsPath \ "entry").read[Seq[Entry]]
   )(FMessage.apply _)
 
+  implicit val pageReads: Reads[FacebookPage] = (
+    (JsPath \ "access_token").read[String] and
+      (JsPath \ "name").read[String] and
+      (JsPath \ "id").read[String] and
+      (JsPath \ "perms").read[Seq[String]]
+    )(FacebookPage.apply _)
+
+  implicit val graphDataReads: Reads[FacebookPageSeq] = (JsPath \ "data").read[Seq[FacebookPage]].map(FacebookPageSeq.apply)
+
   implicit val recipientWrites = new Writes[Recipient] {
     def writes(recipient: Recipient) = Json.obj(
       "id" -> recipient.id

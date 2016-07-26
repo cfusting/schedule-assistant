@@ -1,6 +1,7 @@
 package models.daos
 
 import com.mohiva.play.silhouette.api.LoginInfo
+import models.GoogleToFacebookPage
 import slick.driver.JdbcProfile
 import slick.lifted.ProvenShape.proveShapeOf
 
@@ -120,12 +121,24 @@ trait DBTableDefinitions {
 
   class OpenIDAttributes(tag: Tag) extends Table[DBOpenIDAttribute](tag, "openidattributes") {
     def id = column[String]("id")
-
     def key = column[String]("key")
-
     def value = column[String]("value")
-
     def * = (id, key, value) <>(DBOpenIDAttribute.tupled, DBOpenIDAttribute.unapply)
+  }
+
+  case class DBGoogleToFacebookPage(googleLoginInfoId: Long, facebookPageId: Long, accessToken: String, active:
+  Boolean = true, calendarName: String = "primary")
+
+  class GoogleToFacebookPageTable(tag: Tag) extends Table[DBGoogleToFacebookPage](tag, "googletofacebookpage") {
+
+    def googleLoginInfoId = column[Long]("googlelogininfoid")
+    def facebookPageId = column[Long]("facebookpageid")
+    def accesstoken = column[String]("accesstoken")
+    def active = column[Boolean]("active")
+    def calendarName = column[String]("calendarname")
+    def * = (googleLoginInfoId, facebookPageId, accesstoken, active, calendarName) <> (DBGoogleToFacebookPage.tupled,
+      DBGoogleToFacebookPage.unapply)
+    def pk = primaryKey("googlelogininfoid_facebookpageid_pk", (googleLoginInfoId, facebookPageId))
   }
 
   // table query definitions
@@ -137,6 +150,7 @@ trait DBTableDefinitions {
   val slickOAuth2Infos = TableQuery[OAuth2Infos]
   val slickOpenIDInfos = TableQuery[OpenIDInfos]
   val slickOpenIDAttributes = TableQuery[OpenIDAttributes]
+  val googleToFacebookPageTable = TableQuery[GoogleToFacebookPageTable]
 
   // queries used in multiple places
   def loginInfoQuery(loginInfo: LoginInfo) =
