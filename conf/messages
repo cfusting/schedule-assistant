@@ -1,0 +1,15 @@
+brand=Schedule Assistant
+company=Ferret Labs Inc.
+login.button=Login with Google
+login.title=Connect Your Google Calendar
+login.description=Login with the Google account associated with the calendar you would like {0} to\
+   use for scheduling.
+link.title=Connect Your Facebook Page.
+link.description=Login with the Facebook account associated with the Facebook Page you would like {0} to live on.
+link.button=Login with Facebook.
+page.title=Select a Facebook Page.
+page.description=Select the page you want {0} to schedule for.
+page.button=Select
+page.select=Select Page
+home.title=Home
+home.description=Your {0} is up and running!

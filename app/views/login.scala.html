@@ -1,0 +1,14 @@
+@import play.i18n._
+@main(title = Messages.get("brand")) {
+    @nav("","")
+} {
+    <h1 class="cover-heading">@Messages.get("login.title")</h1>
+    <p class="lead">
+    @Messages.get("login.description", Messages.get("brand"))
+    </p>
+    <p class="lead">
+        <a href="@routes.SocialAuthController.authenticate("google")" class="btn btn-lg btn-default">
+        @Messages.get("login.button")
+        </a>
+    </p>
+}

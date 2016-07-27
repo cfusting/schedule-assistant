@@ -1,0 +1,14 @@
+@import play.i18n._
+@main(title = Messages.get("brand")) {
+    @nav("","")
+} {
+    <h1 class="cover-heading">@Messages.get("link.title")</h1>
+    <p class="lead">
+    @Messages.get("link.description", Messages.get("brand"))
+    </p>
+    <p class="lead">
+        <a href="@routes.WebApp.link("facebook")" class="btn btn-lg btn-default">
+        @Messages.get("link.button")
+        </a>
+    </p>
+}

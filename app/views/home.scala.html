@@ -1,0 +1,8 @@
+@import play.i18n._
+@main(title = Messages.get("brand")) {
+    @nav("active","")
+} {
+    <p class="lead">
+    @Messages.get("home.description", Messages.get("brand"))
+    </p>
+}

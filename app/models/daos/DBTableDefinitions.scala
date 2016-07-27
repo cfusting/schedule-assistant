@@ -42,7 +42,7 @@ trait DBTableDefinitions {
     def * = (id.?, providerID, providerKey) <> (DBLoginInfo.tupled, DBLoginInfo.unapply)
   }
 
-  case class DBUserLoginInfo (
+  case class DBUserLoginInfo(
     userID: String,
     loginInfoId: Long
   )

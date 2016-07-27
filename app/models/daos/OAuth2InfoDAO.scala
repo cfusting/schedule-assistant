@@ -39,10 +39,18 @@ class OAuth2InfoDAO @Inject() (protected val dbConfigProvider: DatabaseConfigPro
         dbLoginInfo.id.get)
     }.transactionally
 
-  def updateAction(loginInfo: LoginInfo, authInfo: OAuth2Info) =
-    oAuth2InfoSubQuery(loginInfo).
-      map(dbOAuth2Info => (dbOAuth2Info.accessToken, dbOAuth2Info.tokenType, dbOAuth2Info.expiresIn, dbOAuth2Info.refreshToken)).
-      update((authInfo.accessToken, authInfo.tokenType, authInfo.expiresIn, authInfo.refreshToken))
+  def updateAction(loginInfo: LoginInfo, authInfo: OAuth2Info) = {
+    authInfo.refreshToken match {
+      case Some(token) =>
+        oAuth2InfoSubQuery(loginInfo).
+          map(dbOAuth2Info => (dbOAuth2Info.accessToken, dbOAuth2Info.tokenType, dbOAuth2Info.expiresIn, dbOAuth2Info.refreshToken)).
+          update((authInfo.accessToken, authInfo.tokenType, authInfo.expiresIn, authInfo.refreshToken))
+      case None =>
+        oAuth2InfoSubQuery(loginInfo).
+          map(dbOAuth2Info => (dbOAuth2Info.accessToken, dbOAuth2Info.tokenType, dbOAuth2Info.expiresIn)).
+          update((authInfo.accessToken, authInfo.tokenType, authInfo.expiresIn))
+    }
+  }
 
   /**
    * Finds the auth info which is linked with the specified login info.
@@ -95,7 +103,7 @@ class OAuth2InfoDAO @Inject() (protected val dbConfigProvider: DatabaseConfigPro
     } yield result
     val action = query.result.head.flatMap {
       case (dbLoginInfo, Some(dbOAuth2Info)) => updateAction(loginInfo, authInfo)
-      case (dbLoginInfo, None)               => addAction(loginInfo, authInfo)
+      case (dbLoginInfo, None) => addAction(loginInfo, authInfo)
     }.transactionally
     db.run(action).map(_ => authInfo)
   }

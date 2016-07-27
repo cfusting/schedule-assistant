@@ -1,0 +1,21 @@
+@import play.i18n._
+@(facebookPageForm: Form[FacebookPageForm], facebookPageOptions: Seq[(String, String)])
+@main(title = Messages.get("brand")) {
+    @nav("","")
+} {
+    <h1 class="cover-heading">@Messages.get("page.title")</h1>
+    <p class="lead">
+    @Messages.get("page.description", Messages.get("brand"))
+    </p>
+    <form action="@routes.WebApp.complete()" method="post">
+        <div class="form-group">
+            <label for="page-selection">@Messages.get("page.select")</label>
+            <select name="pageId" id="page-selection" class="form-control">
+                @for(p <- facebookPageOptions) {
+                    <option value="@p._1">@p._2</option>
+                }
+            </select>
+        </div>
+        <button class="btn btn-lg btn-default">@Messages.get("page.button")</button>
+    </form>
+}

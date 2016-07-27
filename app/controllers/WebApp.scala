@@ -3,7 +3,6 @@ package controllers
 import Preamble._
 import javax.inject.Inject
 
-import play.api.data._
 import play.api.data.Forms._
 import akka.util.ByteString
 import com.mohiva.play.silhouette.api.actions.SecuredRequest
@@ -31,27 +30,47 @@ import play.api.i18n.{I18nSupport, MessagesApi}
 import respond.{ActionResponder, TextResponder}
 import silhouette.CookieEnv
 
-import scala.util.{Failure, Success}
-
-
-class Application @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configuration, sil: Silhouette[CookieEnv],
-                            socialProviderRegistry: SocialProviderRegistry, userService: UserService,
-                            authInfoRepository: AuthInfoRepository, googleToFacebookPageDAO: GoogleToFacebookPageDAO,
-                            oAuth2InfoDAO: OAuth2InfoDAO, botuserDAO: BotuserDAO, masterTime: DateTimeParser)
-  extends Controller with
-    I18nSupport {
+class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configuration, sil: Silhouette[CookieEnv],
+                       socialProviderRegistry: SocialProviderRegistry, userService: UserService,
+                       authInfoRepository: AuthInfoRepository, googleToFacebookPageDAO: GoogleToFacebookPageDAO,
+                       oAuth2InfoDAO: OAuth2InfoDAO, botuserDAO: BotuserDAO, masterTime: DateTimeParser)
+  extends Controller with I18nSupport {
 
   val log = Logger(this.getClass)
 
-  def index = Action {
-    Ok(views.html.index())
+  /**
+    * User starts here with a login screen.
+    */
+  def login = Action { implicit request =>
+    Ok(views.html.login())
   }
 
-  def authenticated = sil.SecuredAction { implicit request =>
-    Ok(views.html.authenticated())
+  /*
+   * Home screen with options for the bot / calendar.
+   */
+  def home = sil.SecuredAction { implicit request =>
+    Ok(views.html.home())
   }
 
-  def connect(provider: String) = sil.SecuredAction.async { implicit request =>
+  /**
+    * After authorization with Google user is brought here to link with Facebook.
+    */
+  def authenticated = sil.SecuredAction.async { implicit request =>
+    (for {
+      loginInfo <- Future(request.identity.loginInfo.find(_.providerID == GoogleProvider.ID).get)
+      googleToFacebookPage <- googleToFacebookPageDAO.find(loginInfo)
+    } yield googleToFacebookPage match {
+      case Some(page) => Ok(views.html.home())
+      case None => Ok(views.html.link())
+    }) recoverWith {
+      case ex: Exception => Future(Ok(views.html.link()))
+    }
+  }
+
+  /**
+    * Handles linking the user with Facebook.
+    */
+  def link(provider: String) = sil.SecuredAction.async { implicit request =>
     (socialProviderRegistry.get[SocialProvider](provider) match {
       case Some(p: SocialProvider with CommonSocialProfileBuilder) =>
         p.authenticate().flatMap {
@@ -60,7 +79,7 @@ class Application @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Co
             profile <- p.retrieveProfile(authInfo)
             user <- userService.linkProviderToUser(request.identity.loginInfo.head, profile.loginInfo)
             authInfo <- authInfoRepository.save(profile.loginInfo, authInfo)
-            result <- Future(Redirect(routes.Application.connected()))
+            result <- Future(Redirect(routes.WebApp.linked()))
           } yield {
             result
           }
@@ -69,7 +88,7 @@ class Application @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Co
     }).recover {
       case e: ProviderException =>
         log.error("Unexpected provider error", e)
-        Redirect(routes.Application.index()).flashing("error" -> "could.not.authenticate")
+        Redirect(routes.WebApp.login()).flashing("error" -> "could.not.authenticate")
     }
   }
 
@@ -107,12 +126,15 @@ class Application @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Co
     facebookPageSeq.data.filter(_.perms.contains("ADMINISTER"))
   }
 
-  def connected = sil.SecuredAction.async { implicit request =>
+  /**
+    * After linking with Facebook the user is prompted to select a Facebook page with which to associate the bot.
+    */
+  def linked = sil.SecuredAction.async { implicit request =>
     (for {
       facebookPageSequence <- retrieveFacebookPageList
     } yield {
       val facebookPageOptions = filterFacebookPages(facebookPageSequence).map(x => (x.id, x.name))
-      Ok(views.html.facebookPages(form, facebookPageOptions))
+      Ok(views.html.page(form, facebookPageOptions))
     }).recover {
       case ex =>
         log.error(s"Unexpected error $ex")
@@ -140,7 +162,7 @@ class Application @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Co
               s" ${data.pageId}.")
           }
           googleToFacebookPageDAO.insert(GoogleToFacebookPage(loginInfo, data.pageId, accessToken, true, "primary"))
-          Ok(views.html.success())
+          Redirect(routes.WebApp.home())
         }).recover {
           case ex =>
             log.error(s"Unexpected error $ex")
@@ -150,94 +172,11 @@ class Application @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Co
     )
   }
 
+
   private def subscribeToPage(facebookPageId: Long, accessToken: String)
                              (implicit request: SecuredRequest[CookieEnv, _]) = {
     ws.url(conf.underlying.getString("subscribe"))
       .withQueryString("access_token" -> accessToken)
       .post("")
   }
-
-  def webhook = Action {
-    implicit request =>
-      log.info("request: " + request.body)
-      val challenge = request.getQueryString("hub.challenge") map {
-        _.trim
-      } getOrElse ""
-      val verify = request.getQueryString("hub.verify_token") map {
-        _.trim
-      } getOrElse ""
-      if (verify == "penguin_verify") {
-        log.info("Penguin verified.")
-        Result(
-          header = ResponseHeader(200, Map.empty),
-          body = HttpEntity.Strict(ByteString(challenge), Some("text/plain"))
-        )
-      } else {
-        BadRequest(verify)
-      }
-  }
-
-  def webhookPost = Action(BodyParsers.parse.json) {
-    implicit request =>
-      log.debug("request: " + request.body)
-      val fmessageResult = request.body.validate[FMessage]
-      fmessageResult.fold(handleJsonErrors, handleJsonSuccess)
-  }
-
-  private def handleJsonErrors(invalid: Seq[(JsPath, Seq[ValidationError])]): Result = {
-    log.error(invalid.toString())
-    BadRequest("Malformed JSON.")
-  }
-
-  private def handleJsonSuccess(valid: FMessage): Result = {
-    valid.entry foreach {
-      entry =>
-        (for {
-          googleToFacebookPage <- googleToFacebookPageDAO.find(entry.id.toLong)
-          oAuth2Info <- oAuth2InfoDAO.find(googleToFacebookPage.googleLoginInfo)
-        } yield {
-          val calendarTools = new CalendarTools(conf, oAuth2Info.get.accessToken, oAuth2Info.get.refreshToken.get,
-            googleToFacebookPage.calendarName)
-          entry.messaging.foreach(
-            messaging => {
-              implicit val userId = messaging.sender
-              messaging.delivery foreach {
-                delivery
-              }
-              messaging.message foreach {
-                _.text foreach { text =>
-                  val textResponder = new TextResponder(conf, ws, botuserDAO, calendarTools,
-                    googleToFacebookPage.accessToken, masterTime)
-                  textResponder.respond(text)
-                }
-              }
-              messaging.postback foreach { pb =>
-                postback(pb, calendarTools, googleToFacebookPage.accessToken)
-              }
-            }
-          )
-        }).recover {
-          case ex: Exception =>
-            log.error(ex.toString)
-            InternalServerError("Internal trouble.")
-        }
-    }
-    Ok("Request Received")
-  }
-
-  def delivery(delivery: Delivery) = {
-    log.debug("Provider verified delivery of messages since: " + delivery.watermark.toString)
-    Ok("Delivery confirmation confirmed.")
-  }
-
-  private def postback(postback: Postback, calendarTools: CalendarTools, facebookPageToken: String)(implicit sd:
-  String): Unit = {
-    log.debug("Postback")
-    val user = Botuser(sd, postback.payload)
-    val ar = new ActionResponder(botuserDAO, ws, conf, masterTime, calendarTools, facebookPageToken)
-    ar.respond(UserAction(user, ""))
-  }
-
 }
-
-

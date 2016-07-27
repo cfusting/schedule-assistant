@@ -46,7 +46,7 @@ class UserServiceImpl @Inject() (userDAO: UserDAO, oAuth2InfoDAO: OAuth2InfoDAO)
   def save(profile: CommonSocialProfile) = {
     userDAO.find(profile.loginInfo).flatMap {
       case Some(user) => // Update user with profile
-        userDAO.save(user.copy(
+        userDAO.update(user.copy(
           firstName = profile.firstName,
           lastName = profile.lastName,
           fullName = profile.fullName,

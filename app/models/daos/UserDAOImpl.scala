@@ -99,4 +99,29 @@ class UserDAOImpl @Inject()(protected val dbConfigProvider: DatabaseConfigProvid
     // run actions and return user afterwards
     db.run(actions).map(_ => user)
   }
+
+  def update(user: User) = {
+    val dbUser = DBUser(user.userID.toString, user.firstName, user.lastName, user.fullName, user.email, user.avatarURL)
+    val dbLoginInfo = DBLoginInfo(None, user.loginInfo.head.providerID, user.loginInfo.head.providerKey)
+    // We don't have the LoginInfo id so we try to get it first.
+    // If there is no LoginInfo yet for this user we retrieve the id on insertion.
+    val loginInfoAction = {
+      val retrieveLoginInfo = slickLoginInfos.filter(
+        loginInfo => loginInfo.providerID === user.loginInfo.head.providerID &&
+          loginInfo.providerKey === user.loginInfo.head.providerKey).result.headOption
+      val insertLoginInfo = slickLoginInfos.returning(slickLoginInfos.map(_.id)).
+        into((loginInfo, id) => loginInfo.copy(id = Some(id))) += dbLoginInfo
+      for {
+        loginInfoOption <- retrieveLoginInfo
+        loginInfo <- loginInfoOption.map(DBIO.successful(_)).getOrElse(insertLoginInfo)
+      } yield loginInfo
+    }
+    // combine database actions to be run sequentially
+    val actions = (for {
+      _ <- slickUsers.insertOrUpdate(dbUser)
+      loginInfo <- loginInfoAction
+    } yield ()).transactionally
+    // run actions and return user afterwards
+    db.run(actions).map(_ => user)
+  }
 }

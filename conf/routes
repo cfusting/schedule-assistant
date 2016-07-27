@@ -2,27 +2,28 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
-# Home page
-GET     /                           controllers.Application.index
+# WebApp
+GET     /                           controllers.WebApp.login
 
-GET     /authorized                 controllers.Application.authenticated
+GET     /authorized                 controllers.WebApp.authenticated
 
-GET     /facebookConnected          controllers.Application.connected
+GET     /linked                     controllers.WebApp.linked
 
-POST    /complete                   controllers.Application.complete
+POST    /complete                   controllers.WebApp.complete
 
-#Facebook hooks
-GET     /webhook                    controllers.Application.webhook
+GET     /home                       controllers.WebApp.home
 
-POST    /webhook                    controllers.Application.webhookPost
+# Web Services
+GET     /webhook                    controllers.HttpServices.webhook
+
+POST    /webhook                    controllers.HttpServices.webhookPost
+
+# Social Login
+GET         /authenticate/:provider          controllers.SocialAuthController.authenticate(provider)
+
+GET         /link/:provider                  controllers.WebApp.link(provider)
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.at(path="/public", file)
-
-# Social Login
-
-GET         /authenticate/:provider          controllers.SocialAuthController.authenticate(provider)
-
-GET         /connect/:provider               controllers.Application.connect(provider)
 
     
