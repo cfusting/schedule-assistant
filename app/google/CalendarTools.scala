@@ -210,4 +210,12 @@ class CalendarTools(conf: Configuration, accessToken: String, refreshToken: Stri
       service.events.insert(calendar, newAvailability).execute
     }
   }
+
+  def getCalendarList: Future[Seq[(String, String)]] = {
+    Future {
+      service.calendarList.list.execute().getItems.filter(_.getAccessRole == "owner").map {
+        x => (x.getId, x.getSummary)
+      }
+    }
+  }
 }

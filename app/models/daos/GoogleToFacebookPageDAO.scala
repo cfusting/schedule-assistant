@@ -21,9 +21,23 @@ class GoogleToFacebookPageDAO @Inject()(protected val dbConfigProvider: Database
     val action = (for {
       loginInfo <- loginInfoQuery(googleToFacebookPage.googleLoginInfo).result.headOption
       _ <- googleToFacebookPageTable += DBGoogleToFacebookPage(loginInfo.get.id.get, googleToFacebookPage
-        .facebookPageId, googleToFacebookPage.accessToken)
+              .facebookPageId, googleToFacebookPage.accessToken)
     } yield ()).transactionally
     db.run(action)
+  }
+
+  def googleToFacebookPageSubQuery(loginInfo: LoginInfo) = {
+    googleToFacebookPageTable.filter(_.googleLoginInfoId in loginInfoQuery(loginInfo).map(_.id))
+  }
+
+  def updateAction(loginInfo: LoginInfo, active: Boolean, calendarId: String) = {
+    googleToFacebookPageSubQuery(loginInfo)
+      .map(gtfp => (gtfp.active, gtfp.calendarId))
+      .update((active, calendarId))
+  }
+
+  def update(loginInfo: LoginInfo, active: Boolean, calendarId: String): Future[Unit] = {
+    db.run(updateAction(loginInfo, active, calendarId)).map(_ => Unit)
   }
 
   def find(facebookPageId: Long) = {
@@ -35,13 +49,13 @@ class GoogleToFacebookPageDAO @Inject()(protected val dbConfigProvider: Database
     }).transactionally
     db.run(query) map { result =>
       GoogleToFacebookPage(LoginInfo(result._2.providerID, result._2.providerKey), result._1.facebookPageId, result
-        ._1.accessToken, result._1.active, result._1.calendarName)
+              ._1.accessToken, result._1.active, result._1.calendarId)
     }
   }
 
-  def find(loginInfo: LoginInfo): Future[Option[GoogleToFacebookPage]] = {
+  def find(googleLoginInfo: LoginInfo): Future[Option[GoogleToFacebookPage]] = {
     val query = (for {
-      loginInfo <- loginInfoQuery(loginInfo).result.head
+      loginInfo <- loginInfoQuery(googleLoginInfo).result.head
       dbGoogleToFacebookPage <- googleToFacebookPageTable.filter(_.googleLoginInfoId === loginInfo.id).result.headOption
     } yield {
       (dbGoogleToFacebookPage, loginInfo)
@@ -49,11 +63,10 @@ class GoogleToFacebookPageDAO @Inject()(protected val dbConfigProvider: Database
     db.run(query) map { entry =>
       entry._1 match {
         case Some(result) => Some(GoogleToFacebookPage(LoginInfo(entry._2.providerID, entry._2.providerKey),
-          result.facebookPageId, result.accessToken, result.active, result.calendarName))
+          result.facebookPageId, result.accessToken, result.active, result.calendarId))
         case None => None
       }
     }
   }
-
 
 }

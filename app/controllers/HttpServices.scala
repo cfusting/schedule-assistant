@@ -1,6 +1,6 @@
 package controllers
 
-import Preamble._
+import JsonConversions._
 import javax.inject.Inject
 
 import play.api.data.Forms._
@@ -41,6 +41,9 @@ class HttpServices @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: C
 
   val log = Logger(this.getClass)
 
+  /**
+    * Activates the webhook with Facebook.
+    */
   def webhook = Action {
     implicit request =>
       log.info("request: " + request.body)
@@ -61,6 +64,9 @@ class HttpServices @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: C
       }
   }
 
+  /**
+    * The webhook Facebook calls. All bot interactions start here.
+    */
   def webhookPost = Action(BodyParsers.parse.json) {
     implicit request =>
       log.debug("request: " + request.body)
@@ -81,7 +87,7 @@ class HttpServices @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: C
           oAuth2Info <- oAuth2InfoDAO.find(googleToFacebookPage.googleLoginInfo)
         } yield {
           val calendarTools = new CalendarTools(conf, oAuth2Info.get.accessToken, oAuth2Info.get.refreshToken.get,
-            googleToFacebookPage.calendarName)
+            googleToFacebookPage.calendarId)
           entry.messaging.foreach(
             messaging => {
               implicit val userId = messaging.sender
@@ -114,6 +120,9 @@ class HttpServices @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: C
     Ok("Delivery confirmation confirmed.")
   }
 
+  /**
+    * Handle a Facebook postback event.
+    */
   private def postback(postback: Postback, calendarTools: CalendarTools, facebookPageToken: String)(implicit sd:
   String): Unit = {
     log.debug("Postback")

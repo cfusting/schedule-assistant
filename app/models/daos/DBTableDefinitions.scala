@@ -126,8 +126,8 @@ trait DBTableDefinitions {
     def * = (id, key, value) <>(DBOpenIDAttribute.tupled, DBOpenIDAttribute.unapply)
   }
 
-  case class DBGoogleToFacebookPage(googleLoginInfoId: Long, facebookPageId: Long, accessToken: String, active:
-  Boolean = true, calendarName: String = "primary")
+  case class DBGoogleToFacebookPage
+  (googleLoginInfoId: Long, facebookPageId: Long, accessToken: String, active: Boolean = true, calendarId: String = "primary")
 
   class GoogleToFacebookPageTable(tag: Tag) extends Table[DBGoogleToFacebookPage](tag, "googletofacebookpage") {
 
@@ -135,8 +135,8 @@ trait DBTableDefinitions {
     def facebookPageId = column[Long]("facebookpageid")
     def accesstoken = column[String]("accesstoken")
     def active = column[Boolean]("active")
-    def calendarName = column[String]("calendarname")
-    def * = (googleLoginInfoId, facebookPageId, accesstoken, active, calendarName) <> (DBGoogleToFacebookPage.tupled,
+    def calendarId = column[String]("calendarid")
+    def * = (googleLoginInfoId, facebookPageId, accesstoken, active, calendarId) <> (DBGoogleToFacebookPage.tupled,
       DBGoogleToFacebookPage.unapply)
     def pk = primaryKey("googlelogininfoid_facebookpageid_pk", (googleLoginInfoId, facebookPageId))
   }

@@ -1,10 +1,9 @@
 package controllers
 
-import Preamble._
+import JsonConversions._
 import javax.inject.Inject
 
 import play.api.data.Forms._
-import akka.util.ByteString
 import com.mohiva.play.silhouette.api.actions.SecuredRequest
 import com.mohiva.play.silhouette.api.exceptions.ProviderException
 import com.mohiva.play.silhouette.api.repositories.AuthInfoRepository
@@ -13,27 +12,22 @@ import com.mohiva.play.silhouette.impl.providers.oauth2.{FacebookProvider, Googl
 import com.mohiva.play.silhouette.impl.providers.{CommonSocialProfileBuilder, OAuth2Info, SocialProvider, SocialProviderRegistry}
 import google.CalendarTools
 import models._
-import models.daos.{BotuserDAO, GoogleToFacebookPageDAO, OAuth2InfoDAO}
+import models.daos.{GoogleToFacebookPageDAO, OAuth2InfoDAO}
 import models.services.UserService
-import nlp.{DateTimeParser, MasterTime}
 import play.api._
 import play.api.data.Form
-import play.api.http.HttpEntity
-import play.api.libs.json._
-import play.api.libs.ws.{WSClient, WSResponse}
+import play.api.libs.ws.WSClient
 import play.api.mvc._
 
 import scala.concurrent._
 import ExecutionContext.Implicits.global
-import play.api.data.validation.ValidationError
-import play.api.i18n.{I18nSupport, MessagesApi}
-import respond.{ActionResponder, TextResponder}
+import play.api.i18n.{I18nSupport, Messages, MessagesApi}
 import silhouette.CookieEnv
 
 class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configuration, sil: Silhouette[CookieEnv],
                        socialProviderRegistry: SocialProviderRegistry, userService: UserService,
                        authInfoRepository: AuthInfoRepository, googleToFacebookPageDAO: GoogleToFacebookPageDAO,
-                       oAuth2InfoDAO: OAuth2InfoDAO, botuserDAO: BotuserDAO, masterTime: DateTimeParser)
+                       oAuth2InfoDAO: OAuth2InfoDAO)
   extends Controller with I18nSupport {
 
   val log = Logger(this.getClass)
@@ -45,11 +39,35 @@ class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configu
     Ok(views.html.login())
   }
 
-  /*
-   * Home screen with options for the bot / calendar.
-   */
-  def home = sil.SecuredAction { implicit request =>
-    Ok(views.html.home())
+  /**
+    * Authenticates a user against a social provider.
+    *
+    * @param provider The ID of the provider to authenticate against.
+    * @return The result to display.
+    */
+  def authenticate(provider: String) = Action.async { implicit request =>
+    (socialProviderRegistry.get[SocialProvider](provider) match {
+      case Some(p: SocialProvider with CommonSocialProfileBuilder) =>
+        p.authenticate().flatMap {
+          case Left(result) => Future.successful(result)
+          case Right(authInfo) => for {
+            profile <- p.retrieveProfile(authInfo)
+            user <- userService.save(profile)
+            authInfo <- authInfoRepository.save(profile.loginInfo, authInfo)
+            authenticator <- sil.env.authenticatorService.create(profile.loginInfo)
+            value <- sil.env.authenticatorService.init(authenticator)
+            result <- sil.env.authenticatorService.embed(value, Redirect(routes.WebApp.authenticated()))
+          } yield {
+            sil.env.eventBus.publish(LoginEvent(user, request))
+            result
+          }
+        }
+      case _ => Future.failed(new ProviderException(s"Cannot authenticate with unexpected social provider $provider"))
+    }).recover {
+      case e: ProviderException =>
+        log.error("Unexpected provider error", e)
+        Redirect(routes.WebApp.login()).flashing("error" -> "could.not.authenticate")
+    }
   }
 
   /**
@@ -60,7 +78,7 @@ class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configu
       loginInfo <- Future(request.identity.loginInfo.find(_.providerID == GoogleProvider.ID).get)
       googleToFacebookPage <- googleToFacebookPageDAO.find(loginInfo)
     } yield googleToFacebookPage match {
-      case Some(page) => Ok(views.html.home())
+      case Some(page) => Redirect(routes.WebApp.home())
       case None => Ok(views.html.link())
     }) recoverWith {
       case ex: Exception => Future(Ok(views.html.link()))
@@ -92,11 +110,6 @@ class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configu
     }
   }
 
-  val form = Form(
-    mapping(
-      "pageId" -> longNumber
-    )(FacebookPageForm.apply)(FacebookPageForm.unapply)
-  )
 
   private def requestFacebookPageList(oAuthInfo: OAuth2Info) = {
     ws.url(conf.underlying.getString("listpages")).withQueryString("fields" -> conf.underlying
@@ -126,6 +139,12 @@ class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configu
     facebookPageSeq.data.filter(_.perms.contains("ADMINISTER"))
   }
 
+  val pageForm = Form(
+    mapping(
+      "pageId" -> longNumber
+    )(FacebookPageForm.apply)(FacebookPageForm.unapply)
+  )
+
   /**
     * After linking with Facebook the user is prompted to select a Facebook page with which to associate the bot.
     */
@@ -134,7 +153,7 @@ class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configu
       facebookPageSequence <- retrieveFacebookPageList
     } yield {
       val facebookPageOptions = filterFacebookPages(facebookPageSequence).map(x => (x.id, x.name))
-      Ok(views.html.page(form, facebookPageOptions))
+      Ok(views.html.page(pageForm, facebookPageOptions))
     }).recover {
       case ex =>
         log.error(s"Unexpected error $ex")
@@ -142,9 +161,13 @@ class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configu
     }
   }
 
+  /**
+    * After selecting a Facebook page to associate with the bot the page is subscribed to the bot and the
+    * page refresh token is stored.
+    */
   def complete = sil.SecuredAction.async { implicit request =>
     log.info(request.request.body.toString)
-    form.bindFromRequest.fold(
+    pageForm.bindFromRequest.fold(
       errors => {
         log.error(s"Could not bind form $errors")
         Future.failed(new Exception("Form error."))
@@ -172,11 +195,48 @@ class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configu
     )
   }
 
-
   private def subscribeToPage(facebookPageId: Long, accessToken: String)
                              (implicit request: SecuredRequest[CookieEnv, _]) = {
     ws.url(conf.underlying.getString("subscribe"))
       .withQueryString("access_token" -> accessToken)
       .post("")
+  }
+
+  val optionsForm = Form(
+    mapping(
+      "active" -> boolean,
+      "calendarId" -> text
+    )(UserOptionsForm.apply)(UserOptionsForm.unapply)
+  )
+
+  /*
+   * Home screen with options for the bot / calendar.
+   */
+  def home = sil.SecuredAction.async { implicit request =>
+    for {
+      loginInfo <- Future(request.identity.loginInfo.find(_.providerID == GoogleProvider.ID).get)
+      googleToFacebookPage <- googleToFacebookPageDAO.find(loginInfo)
+      authInfo <- userService.retrieveOAuthInfo(loginInfo)
+      ai = authInfo.get
+      gtfp = googleToFacebookPage.get
+      calendarList <- new CalendarTools(conf, ai.accessToken, ai.refreshToken.get, gtfp.calendarId).getCalendarList
+    } yield {
+      val filledForm = optionsForm.fill(UserOptionsForm(gtfp.active, gtfp.calendarId))
+      Ok(views.html.home(filledForm, gtfp.active, calendarList))
+    }
+  }
+
+  def options = sil.SecuredAction { implicit request =>
+    optionsForm.bindFromRequest.fold(
+      errors => {
+        log.error(s"Could not bind form $errors")
+        Redirect(routes.WebApp.home())
+      },
+      data => {
+        val loginInfo = request.identity.loginInfo.find(_.providerID == GoogleProvider.ID).get
+        googleToFacebookPageDAO.update(loginInfo, data.active, data.calendarId)
+        Redirect(routes.WebApp.home()).flashing("saved" -> Messages("user.options.saved"))
+      }
+    )
   }
 }

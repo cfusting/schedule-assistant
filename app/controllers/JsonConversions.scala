@@ -5,7 +5,7 @@ import play.api.libs.json._
 import play.api.libs.json.Reads._
 import play.api.libs.functional.syntax._
 
-object Preamble {
+object JsonConversions {
 
     implicit val postbackWrites = new Writes[Postback] {
     def writes(postback: Postback) = Json.obj(

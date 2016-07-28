@@ -12,4 +12,13 @@ page.description=Select the page you want {0} to schedule for.
 page.button=Select
 page.select=Select Page
 home.title=Home
-home.description=Your {0} is up and running!
+home.description=Your {0} is up and running! You can change the following options at any time.
+user.options.calendar=Calendar
+user.options.active= {0} is
+user.options.button=Save Options
+user.options.active.description=Use this toggle to activate and deactivate your {0}.
+user.options.calendar.description=Select the calendar you want {0} use. Your full name is your default and \
+  primary calendar.
+user.options.saved=Options Saved.
+nav.home=Home
+nav.contact=Contact

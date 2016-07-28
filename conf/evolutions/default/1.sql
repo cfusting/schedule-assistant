@@ -71,7 +71,7 @@ create table googletofacebookpage (
   facebookpageid bigint NOT NULL,
   accesstoken text NOT NULL,
   active boolean NOT NULL,
-  calendarname text NOT NULL,
+  calendarid text NOT NULL,
   CONSTRAINT googlelogininfoid_facebookpageid_pk PRIMARY KEY (googlelogininfoid, facebookpageid)
 );
 

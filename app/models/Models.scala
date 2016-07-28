@@ -33,14 +33,14 @@ case class FacebookPage(access_token: String, name: String, id: String, perms: S
 
 // Forms
 case class FacebookPageForm(pageId: Long)
+case class UserOptionsForm(active: Boolean = false, calendarId: String)
 
 // Tables
 case class Botuser(id: String, action: String, timestamp: Option[Timestamp] = None,
                    eventId: Option[String] = None, firstName: Option[String] = None,
                    lastName: Option[String] = None)
 
-case class GoogleToFacebookPage(googleLoginInfo: LoginInfo, facebookPageId: Long, accessToken: String, active: Boolean,
-                                calendarName: String)
+case class GoogleToFacebookPage(googleLoginInfo: LoginInfo, facebookPageId: Long, accessToken: String, active: Boolean, calendarId: String)
 
 // Actions
 case class UserAction(user: Botuser, text: String)

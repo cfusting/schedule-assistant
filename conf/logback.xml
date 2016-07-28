@@ -35,11 +35,11 @@
     <logger name="google.CalendarTools" level="DEBUG" />
     <logger name="controllers.HttpServices" level="DEBUG" />
     <logger name="models.daos.BotuserDAO" level="DEBUG" />
-    <logger name="controllers.SocialAuthController" level="DEBUG" />
+    <logger name="controllers.WebApp" level="DEBUG" />
 
     <logger name="com.gargoylesoftware.htmlunit.javascript" level="OFF" />
 
-    <root level="OFF">
+    <root level="WARN">
         <appender-ref ref="ASYNCFILE" />
         <appender-ref ref="ASYNCSTDOUT" />
     </root>

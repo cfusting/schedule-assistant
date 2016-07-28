@@ -13,13 +13,15 @@ POST    /complete                   controllers.WebApp.complete
 
 GET     /home                       controllers.WebApp.home
 
+POST    /options                    controllers.WebApp.options
+
 # Web Services
 GET     /webhook                    controllers.HttpServices.webhook
 
 POST    /webhook                    controllers.HttpServices.webhookPost
 
 # Social Login
-GET         /authenticate/:provider          controllers.SocialAuthController.authenticate(provider)
+GET         /authenticate/:provider          controllers.WebApp.authenticate(provider)
 
 GET         /link/:provider                  controllers.WebApp.link(provider)
 

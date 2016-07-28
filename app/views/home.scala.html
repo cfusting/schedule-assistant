@@ -1,8 +1,45 @@
-@import play.i18n._
-@main(title = Messages.get("brand")) {
-    @nav("active","")
+@(userOptionsForm: Form[UserOptionsForm], active: Boolean, calendars: Seq[(String, String)])(implicit request:
+RequestHeader, messages: Messages))
+@main(title = Messages("brand")) {
+    @nav("active", "")
 } {
     <p class="lead">
-    @Messages.get("home.description", Messages.get("brand"))
+    @Messages("home.description", Messages("brand"))
     </p>
+    <form action="@routes.WebApp.options()" method="post">
+        <div class="form-group">
+            <label for="@userOptionsForm("active").name">@Messages("user.options.active", Messages("brand"))
+            </label>
+            <input type="checkbox"
+            name="@userOptionsForm("active").name"
+            id="@userOptionsForm("active").name"
+            class="form-control"
+            value="true"
+                @if(userOptionsForm("active").value.getOrElse("false") == "true") {
+                    checked="checked"}>
+            <p>@Messages("user.options.active.description", Messages("brand"))</p>
+        </div>
+        <div class="form-group">
+            <label for="@userOptionsForm("calendarId").name">@Messages("user.options.calendar")</label>
+            <select name="@userOptionsForm("calendarId").name"
+            id="@userOptionsForm("calendarId").name"
+            class="form-control">
+            @for(p <- calendars) {
+                <option value="@p._1"
+                    @if(p._1 == userOptionsForm("calendarId").value.get) {
+                        selected="selected"}
+                >
+                @p._2
+                </option>
+            }
+            </select>
+            <p>@Messages("user.options.calendar.description", Messages("brand"))</p>
+        </div>
+        <button class="btn btn-lg btn-default">@Messages("user.options.button")</button>
+    </form>
+    @request.flash.get("saved").map { msg =>
+        <div class="alert alert-success" role="alert">
+            <strong>@msg</strong>
+        </div>
+    }
 }
