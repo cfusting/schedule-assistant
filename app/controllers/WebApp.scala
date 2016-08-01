@@ -23,6 +23,7 @@ import scala.concurrent._
 import ExecutionContext.Implicits.global
 import play.api.i18n.{I18nSupport, Messages, MessagesApi}
 import silhouette.CookieEnv
+import views.html.helper.checkbox
 
 class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configuration, sil: Silhouette[CookieEnv],
                        socialProviderRegistry: SocialProviderRegistry, userService: UserService,
@@ -139,41 +140,52 @@ class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configu
     facebookPageSeq.data.filter(_.perms.contains("ADMINISTER"))
   }
 
-  val pageForm = Form(
+  val optionsForm = Form(
     mapping(
-      "pageId" -> longNumber
-    )(FacebookPageForm.apply)(FacebookPageForm.unapply)
+      "pageId" -> longNumber,
+      "calendarId" -> text,
+      "name" -> text(minLength = 2),
+      "eventNoun" -> text(minLength = 2)
+    )(UserOptionsForm.apply)(UserOptionsForm.unapply)
   )
 
   /**
-    * After linking with Facebook the user is prompted to select a Facebook page with which to associate the bot.
+    * After linking with Facebook the user is sets options.
     */
   def linked = sil.SecuredAction.async { implicit request =>
-    (for {
+    for {
       facebookPageSequence <- retrieveFacebookPageList
+      loginInfo <- Future(request.identity.loginInfo.find(_.providerID == GoogleProvider.ID).get)
+      authInfo <- userService.retrieveOAuthInfo(loginInfo)
+      ai = authInfo.get
+      calendarList <- new CalendarTools(conf, ai.accessToken, ai.refreshToken.get, "primary").getCalendarList
     } yield {
       val facebookPageOptions = filterFacebookPages(facebookPageSequence).map(x => (x.id, x.name))
-      Ok(views.html.page(pageForm, facebookPageOptions))
-    }).recover {
-      case ex =>
-        log.error(s"Unexpected error $ex")
-        InternalServerError(s"Exception error: $ex")
+      Ok(views.html.options(optionsForm, facebookPageOptions, calendarList))
     }
   }
 
   /**
-    * After selecting a Facebook page to associate with the bot the page is subscribed to the bot and the
+    * After setting options the Facebook page is subscribed to the bot and the
     * page refresh token is stored.
     */
-  def complete = sil.SecuredAction.async { implicit request =>
+  def postOptions = sil.SecuredAction.async { implicit request =>
     log.info(request.request.body.toString)
-    pageForm.bindFromRequest.fold(
-      errors => {
-        log.error(s"Could not bind form $errors")
-        Future.failed(new Exception("Form error."))
+    optionsForm.bindFromRequest.fold(
+      formWithErrors => {
+        for {
+          facebookPageSequence <- retrieveFacebookPageList
+          loginInfo <- Future(request.identity.loginInfo.find(_.providerID == GoogleProvider.ID).get)
+          authInfo <- userService.retrieveOAuthInfo(loginInfo)
+          ai = authInfo.get
+          calendarList <- new CalendarTools(conf, ai.accessToken, ai.refreshToken.get, "primary").getCalendarList
+        } yield {
+          val facebookPageOptions = filterFacebookPages(facebookPageSequence).map(x => (x.id, x.name))
+          BadRequest(views.html.options(formWithErrors, facebookPageOptions, calendarList))
+        }
       },
       data => {
-        (for {
+        for {
           facebookPageSequence <- retrieveFacebookPageList
           loginInfo <- Future(request.identity.loginInfo.find(_.providerID == GoogleProvider.ID).get)
           accessToken <- Future(filterFacebookPages(facebookPageSequence).filter(_.id.toLong == data.pageId).head
@@ -184,15 +196,29 @@ class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configu
             throw new Exception(s"User: ${request.identity.userID} | Failed to subscribe user to facebook page:" +
               s" ${data.pageId}.")
           }
-          googleToFacebookPageDAO.insert(GoogleToFacebookPage(loginInfo, data.pageId, accessToken, true, "primary"))
+          // Note if this data is updated the active field is NOT mutated.
+          googleToFacebookPageDAO.save(GoogleToFacebookPage(loginInfo, data.pageId, accessToken, true,
+            data.calendarId, data.name, data.eventNoun))
           Redirect(routes.WebApp.home())
-        }).recover {
-          case ex =>
-            log.error(s"Unexpected error $ex")
-            InternalServerError(s"Unexpected error: $ex")
         }
       }
     )
+  }
+
+  def options = sil.SecuredAction.async { implicit request =>
+    for {
+      facebookPageSequence <- retrieveFacebookPageList
+      loginInfo <- Future(request.identity.loginInfo.find(_.providerID == GoogleProvider.ID).get)
+      gtfp <- googleToFacebookPageDAO.find(loginInfo)
+      goo = gtfp.get
+      authInfo <- userService.retrieveOAuthInfo(loginInfo)
+      ai = authInfo.get
+      calendarList <- new CalendarTools(conf, ai.accessToken, ai.refreshToken.get, goo.calendarId).getCalendarList
+    } yield {
+      val facebookPageOptions = filterFacebookPages(facebookPageSequence).map(x => (x.id, x.name))
+      val filledForm = optionsForm.fill(UserOptionsForm(goo.facebookPageId, goo.calendarId, goo.name, goo.eventNoun))
+      Ok(views.html.options(filledForm, facebookPageOptions, calendarList))
+    }
   }
 
   private def subscribeToPage(facebookPageId: Long, accessToken: String)
@@ -202,11 +228,11 @@ class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configu
       .post("")
   }
 
-  val optionsForm = Form(
+
+  val homeForm = Form(
     mapping(
-      "active" -> boolean,
-      "calendarId" -> text
-    )(UserOptionsForm.apply)(UserOptionsForm.unapply)
+      "active" -> boolean
+    )(HomeForm.apply)(HomeForm.unapply)
   )
 
   /*
@@ -215,27 +241,23 @@ class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configu
   def home = sil.SecuredAction.async { implicit request =>
     for {
       loginInfo <- Future(request.identity.loginInfo.find(_.providerID == GoogleProvider.ID).get)
-      googleToFacebookPage <- googleToFacebookPageDAO.find(loginInfo)
-      authInfo <- userService.retrieveOAuthInfo(loginInfo)
-      ai = authInfo.get
-      gtfp = googleToFacebookPage.get
-      calendarList <- new CalendarTools(conf, ai.accessToken, ai.refreshToken.get, gtfp.calendarId).getCalendarList
+      gtfp <- googleToFacebookPageDAO.find(loginInfo)
     } yield {
-      val filledForm = optionsForm.fill(UserOptionsForm(gtfp.active, gtfp.calendarId))
-      Ok(views.html.home(filledForm, gtfp.active, calendarList))
+      val filledForm = homeForm.fill(HomeForm(active = gtfp.get.active))
+      Ok(views.html.home(filledForm))
     }
   }
 
-  def options = sil.SecuredAction { implicit request =>
-    optionsForm.bindFromRequest.fold(
-      errors => {
-        log.error(s"Could not bind form $errors")
-        Redirect(routes.WebApp.home())
+  def postActive = sil.SecuredAction { implicit request =>
+    homeForm.bindFromRequest.fold(
+      formWithErrors => {
+        BadRequest(views.html.home(formWithErrors))
       },
       data => {
-        val loginInfo = request.identity.loginInfo.find(_.providerID == GoogleProvider.ID).get
-        googleToFacebookPageDAO.update(loginInfo, data.active, data.calendarId)
-        Redirect(routes.WebApp.home()).flashing("saved" -> Messages("user.options.saved"))
+        for {
+          loginInfo <- Future(request.identity.loginInfo.find(_.providerID == GoogleProvider.ID).get)
+        } yield googleToFacebookPageDAO.update(loginInfo, data.active)
+        Redirect(routes.WebApp.home())
       }
     )
   }

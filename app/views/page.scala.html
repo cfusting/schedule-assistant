@@ -1,4 +1,5 @@
-@(facebookPageForm: Form[FacebookPageForm], facebookPageOptions: Seq[(String, String)])(implicit messages: Messages)
+@*
+@(facebookPageForm: Form[FacebookPageForm], facebookPageOptions: Seq[(String, String)], calendarOptions: Seq[(String, String)])(implicit messages: Messages)
     @main(title = Messages("brand")) {
         @nav("", "")
     } {
@@ -15,6 +16,23 @@
                 }
                 </select>
             </div>
+            <div class="form-group">
+                @helper.select(facebookPageForm("calendar"), calendarOptions, 'class -> "form-control",
+                '_label -> Messages("page.calendar.label", Messages("brand")))
+            </div>
+            <div class="form-group">
+                @helper.inputText(facebookPageForm("name"), 'class -> "form-control",
+                    'placeholder -> Messages("page.name.placeholder", Messages("brand")),
+                    '_label -> Messages("page.name.label", Messages("brand")))
+                <p>Messages("page.name.helptext")</p>
+            </div>
+            <div class="form-group">
+                @helper.inputText(facebookPageForm("appointmentVerb"), 'class -> "form-control",
+                    'placeholder -> Messages("page.name.placeholder", Messages("brand")),
+                    '_label -> Messages("page.name.label", Messages("brand")))
+                <p>Messages("page.name.helptext")</p>
+            </div>
             <button class="btn btn-lg btn-default">@Messages("page.button")</button>
         </form>
     }
+    *@

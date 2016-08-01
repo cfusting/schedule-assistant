@@ -1,3 +1,5 @@
-@(home: String, contact: String)(implicit messages: Messages)
+@(home: String, contact: String, options: String)(implicit messages: Messages)
 <li class = "@home"><a href="@routes.WebApp.home()">@Messages("nav.home")</a></li>
 <li class = "@contact"><a href="mailto:cfusting@@gmail.com" target="_blank">@Messages("nav.contact")</a></li>
+<li class = "@options"><a href="@routes.WebApp.options()">@Messages("nav.options")</a></li>
+

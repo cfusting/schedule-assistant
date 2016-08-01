@@ -32,15 +32,17 @@ case class FacebookPageSeq(data: Seq[FacebookPage])
 case class FacebookPage(access_token: String, name: String, id: String, perms: Seq[String])
 
 // Forms
-case class FacebookPageForm(pageId: Long)
-case class UserOptionsForm(active: Boolean = false, calendarId: String)
+case class UserOptionsForm(pageId: Long, calendarId: String, name: String,
+                           eventNoun: String)
+case class HomeForm(active: Boolean = false)
 
 // Tables
 case class Botuser(id: String, action: String, timestamp: Option[Timestamp] = None,
                    eventId: Option[String] = None, firstName: Option[String] = None,
                    lastName: Option[String] = None)
 
-case class GoogleToFacebookPage(googleLoginInfo: LoginInfo, facebookPageId: Long, accessToken: String, active: Boolean, calendarId: String)
+case class GoogleToFacebookPage(googleLoginInfo: LoginInfo, facebookPageId: Long, accessToken: String,
+                                active: Boolean, calendarId: String, name: String, eventNoun: String)
 
 // Actions
 case class UserAction(user: Botuser, text: String)

@@ -1,0 +1,42 @@
+@(userOptionsForm: Form[UserOptionsForm], pages: Seq[(String, String)],
+        calendars: Seq[(String, String)])(implicit request: RequestHeader, messages: Messages)
+    @main(title = Messages("brand")) {
+        @nav("", "", "active")
+    } {
+        <form action="@routes.WebApp.postOptions()" method="post">
+            <div class="form-group">
+            @helper.select(userOptionsForm("pageId"), pages, 'class -> "form-control",
+                'class -> "form-control",
+                '_label -> Messages("user.options.page.label"),
+                '_help -> Messages("user.options.page.helptext", Messages("brand")))
+            </div>
+            <div class="form-group">
+            @helper.select(userOptionsForm("calendarId"), calendars,
+                'class -> "form-control",
+                '_label -> Messages("user.options.calendar.label"),
+                '_help -> Messages("user.options.calendar.helptext", Messages("brand")))
+            </div>
+            <div class="form-group">
+            @helper.inputText(userOptionsForm("name"),
+                'class -> "form-control",
+                'placeholder -> Messages("user.options.name.placeholder"),
+                '_label -> Messages("user.options.name.label", Messages("brand")),
+                '_help -> Messages("user.options.name.helptext", Messages("brand")))
+            </div>
+            <div class="form-group">
+            @helper.inputText(userOptionsForm("eventNoun"),
+                'class -> "form-control",
+                'placeholder -> Messages("user.options.eventnoun.placeholder", Messages("brand")),
+                '_label -> Messages("user.options.eventnoun.label", Messages("brand")),
+                '_help -> Messages("user.options.eventnoun.helptext", Messages("brand")))
+            </div>
+            <div class="form-group">
+                <input type="submit" class="btn btn-lg btn-default" value="@Messages("user.options.button")">
+            </div>
+        </form>
+        @request.flash.get("saved").map { msg =>
+            <div class="alert alert-success" role="alert">
+                <strong>@msg</strong>
+            </div>
+        }
+    }

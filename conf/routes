@@ -9,11 +9,14 @@ GET     /authorized                 controllers.WebApp.authenticated
 
 GET     /linked                     controllers.WebApp.linked
 
-POST    /complete                   controllers.WebApp.complete
+POST    /postOptions                controllers.WebApp.postOptions
 
 GET     /home                       controllers.WebApp.home
 
-POST    /options                    controllers.WebApp.options
+POST    /postActive                  controllers.WebApp.postActive
+
+GET     /options                    controllers.WebApp.options
+
 
 # Web Services
 GET     /webhook                    controllers.HttpServices.webhook

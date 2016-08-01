@@ -1,45 +1,19 @@
-@(userOptionsForm: Form[UserOptionsForm], active: Boolean, calendars: Seq[(String, String)])(implicit request:
-RequestHeader, messages: Messages))
+@(form: Form[HomeForm])(implicit messages: Messages)
 @main(title = Messages("brand")) {
-    @nav("active", "")
+    @nav("active", "","")
 } {
+    <h1>@Messages("home.title")</h1>
     <p class="lead">
     @Messages("home.description", Messages("brand"))
     </p>
-    <form action="@routes.WebApp.options()" method="post">
+    <form id="form" action="@routes.WebApp.postActive()" method="post">
         <div class="form-group">
-            <label for="@userOptionsForm("active").name">@Messages("user.options.active", Messages("brand"))
-            </label>
-            <input type="checkbox"
-            name="@userOptionsForm("active").name"
-            id="@userOptionsForm("active").name"
-            class="form-control"
-            value="true"
-                @if(userOptionsForm("active").value.getOrElse("false") == "true") {
-                    checked="checked"}>
-            <p>@Messages("user.options.active.description", Messages("brand"))</p>
+        @helper.checkbox(form("active"),
+            'class -> "form-control",
+            '_label -> Messages("user.options.active", Messages("brand")),
+            '_help -> Messages("user.options.active.helptext", Messages("brand")),
+            'id -> form("active").name,
+            'onChange -> "document.getElementById('form').submit()")
         </div>
-        <div class="form-group">
-            <label for="@userOptionsForm("calendarId").name">@Messages("user.options.calendar")</label>
-            <select name="@userOptionsForm("calendarId").name"
-            id="@userOptionsForm("calendarId").name"
-            class="form-control">
-            @for(p <- calendars) {
-                <option value="@p._1"
-                    @if(p._1 == userOptionsForm("calendarId").value.get) {
-                        selected="selected"}
-                >
-                @p._2
-                </option>
-            }
-            </select>
-            <p>@Messages("user.options.calendar.description", Messages("brand"))</p>
-        </div>
-        <button class="btn btn-lg btn-default">@Messages("user.options.button")</button>
     </form>
-    @request.flash.get("saved").map { msg =>
-        <div class="alert alert-success" role="alert">
-            <strong>@msg</strong>
-        </div>
-    }
 }
