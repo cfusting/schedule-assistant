@@ -93,7 +93,7 @@ class HttpServices @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: C
                     _.text foreach { text =>
                       val textResponder = new TextResponder(conf, ws, botuserDAO, calendarTools,
                         gtfp, masterTime, messagesApi)
-                      textResponder.respond(text)
+                      textResponder.respond(text.trim)
                     }
                   }
                   messaging.postback foreach { pb =>

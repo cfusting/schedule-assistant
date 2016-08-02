@@ -91,9 +91,22 @@ object TimeUtils {
     } mkString ", "
   }
 
- def getDayTimeStrings(dayTimes: Seq[TimeRange]): String = {
-    dayTimes.map { t =>
-      {dayTimeFormat(t.start)}
+  def getDayTimeStrings(dayTimes: Seq[TimeRange]): String = {
+    dayTimes.map { t => {
+      dayTimeFormat(t.start)
+    }
     } mkString "\n"
+  }
+
+  def getReadableDurationString(durationString: String): String = {
+    val hoursAndMins = "([0-9])(\\.[0-9]+) hour[s]?".r
+    val minsOnly = "[0-9]?(\\.[0-9]+) hour[s]?".r
+    durationString match {
+      case hoursAndMins(hours: String, mins: String) =>
+        s"${hours.toDouble} hours and ${Math.round(mins.toDouble * 60)} minutes"
+      case minsOnly(mins: String) =>
+        s"${Math.round(mins.toDouble * 60)} minutes"
+      case _ => durationString
+    }
   }
 }

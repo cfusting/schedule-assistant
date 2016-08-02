@@ -85,17 +85,17 @@ class CalendarTools(conf: Configuration, accessToken: String, refreshToken: Stri
     * @param appointmentStartTime
     * @param duration
     * @param eventId
-    * @param userName
+    * @param eventName
     * @return
     */
-  def scheduleTime(appointmentStartTime: DateTime, duration: Duration, eventId: String, userName: String,
+  def scheduleTime(appointmentStartTime: DateTime, duration: Duration, eventId: String, eventName: String,
                    userId: String): Future[Appointment] = {
     Future {
       val appointmentEndTime = appointmentStartTime.withDurationAdded(duration.getMillis, 1)
       val event = service.events.get(calendar, eventId).execute
       if (isTimeInWindow(appointmentStartTime, event) && isTimeInWindow(appointmentEndTime, event)) {
         service.events.delete(calendar, eventId).execute
-        val events = partitionAvailability(event, appointmentStartTime, appointmentEndTime, userName, userId)
+        val events = partitionAvailability(event, appointmentStartTime, appointmentEndTime, eventName, userId)
         val apt = events map { x =>
           service.events.insert(calendar, x).execute
         }
@@ -113,14 +113,14 @@ class CalendarTools(conf: Configuration, accessToken: String, refreshToken: Stri
     * @param availability
     * @param appointmentStartTime
     * @param appointmentEndTime
-    * @param userName
+    * @param eventName
     * @return
     */
   private def partitionAvailability(availability: Event, appointmentStartTime: DateTime,
-                                    appointmentEndTime: DateTime, userName: String, userId: String): Seq[Event] = {
+                                    appointmentEndTime: DateTime, eventName: String, userId: String): Seq[Event] = {
     var events = List[Event]()
     val appointment = new Event()
-      .setSummary("Lesson with " + userName)
+      .setSummary(eventName)
       .setStart(new EventDateTime().setDateTime(appointmentStartTime))
       .setEnd(new EventDateTime().setDateTime(appointmentEndTime))
       .setExtendedProperties(new ExtendedProperties().setShared(Map(userIdKey -> userId)))

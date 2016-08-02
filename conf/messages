@@ -22,14 +22,14 @@ user.options.name.helptext=This is the name {0} will refer to. Example: "Hi I''m
 user.options.eventnoun.label=Event Noun
 user.options.eventnoun.placeholder=appointment, meeting, lesson, ...
 user.options.eventnoun.helptext=The type of event {0} helps you schedule. Example: "I can help you schedule a meeting \
-  with..."
+with..."
 user.options.button=Save Options
 user.options.saved=Options Saved.
 nav.home=Home
 nav.contact=Contact
 nav.options=Options
-greeting=Hi I''m {0}''s {1}. In the future you can reach this menu by clicking on the three blue bars on the bottom \
-  left of the chat box. Click "Schedule" to get started.
+greeting=Hi I''m {0}''s {1}. In the future you can reach this menu by clicking on the three blue bars on the bottom  \
+left of the chat box. Click "Schedule" to get started.
 schedule=Schedule
 cancel=Cancel
 view=View
@@ -43,12 +43,13 @@ ar.time.repeat=Sorry I don't understand what day you want. You can say things li
 ar.time.match=Ok. How long a {0} would you like? {1} has at most {2}"
 ar.duration.repeat=Sorry I don't understand what day you want. You can say things like "1 hour" or "30 minutes".
 ar.duration.match=Ok I''ve got you down for {0} from {1} until {2}. Please enter any notes (phone \
-  number, special instructions) you would like to leave for {3}.
+number, special instructions) you would like to leave for {3}.
+ar.duration.schedule.eventname={0} with {1}.
 ar.notes=Ok {0} will be notified of your {1} and given your notes. Have a great day!
 ar.cancel.ask=What day and time would you like to cancel? You can say things like "tomorrow at 1 pm".
 ar.cancel.repeat=Sorry I don't understand. You can say things like "tomorrow at 4 pm" or "July 4th at 11 am"
 ar.cancel.noappt=Sorry I couldn''t find anything for {0} at {1}. If you''d like to see what you have scheduled use the \
-  "View Schedule"  menu option.
-ar.cancel.match=Ok I've canceled your appointment.
+"View Schedule"  menu option.
+ar.cancel.match=Ok I''ve canceled your appointment.
 ar.view.match=Here is a list of your lessons over the next two weeks:\n{0}
 

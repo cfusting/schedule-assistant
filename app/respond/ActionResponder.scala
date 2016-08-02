@@ -129,12 +129,13 @@ class ActionResponder(override val userDAO: BotuserDAO, override val ws: WSClien
       case Some(time) =>
         user.eventId match {
           case Some(eventId) =>
-            val times = masterTime.getDurations(text)
+            val times = masterTime.getDurations(TimeUtils.getReadableDurationString(text))
             times.length match {
-              case t if t <= 2 =>
+              case t if t <= 2 && t > 0 =>
                 val duration = times.reduceLeft(_.plus(_))
-                calendarTools.scheduleTime(time, duration, eventId, user.firstName.getOrElse("") + " " + user.lastName
-                  .getOrElse(""), userId) onComplete {
+                calendarTools.scheduleTime(time, duration, eventId, Messages("ar.duration.schedule.eventname",
+                  gtfp.eventNoun, user.firstName.getOrElse("") + " " + user.lastName.getOrElse("")).capitalize,
+                  userId) onComplete {
                   case Success(appt) =>
                     userDAO.insertOrUpdate(Botuser(userId, ActionStates.notes.toString, Some(appt.times.start), Some(appt
                       .eventId), user.firstName, user.lastName)).onComplete {
