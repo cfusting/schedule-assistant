@@ -6,6 +6,7 @@ import google.CalendarTools
 import models._
 import nlp.DateTimeParser
 import org.joda.time.DateTime
+import play.api.i18n.{Lang, Messages, MessagesApi}
 import play.api.{Configuration, Logger}
 import play.api.libs.ws.WSClient
 import utilities.{JsonUtil, TimeUtils}
@@ -14,9 +15,10 @@ import utilities.TimeUtils._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
-class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClient,
-                       override val conf: Configuration, masterTime: DateTimeParser,
-                       override val calendarTools: CalendarTools, override val facebookPageToken: String)
+class ActionResponder(override val userDAO: BotuserDAO, override val ws: WSClient,
+                      override val conf: Configuration, masterTime: DateTimeParser,
+                      override val calendarTools: CalendarTools, override val gtfp: GoogleToFacebookPage,
+                      override val messagesApi: MessagesApi)(implicit val lang: Lang)
   extends Responder {
 
   override val log = Logger(this.getClass)
@@ -43,8 +45,7 @@ class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClie
   private def schedule(implicit userId: String) = {
     val user = Botuser(userId, ActionStates.day.toString)
     userDAO.insertOrUpdate(user) onSuccess {
-      case _ => sendJson(JsonUtil.getTextMessageJson("What day are you interested in? " +
-        "You can say things like \"tomorrow \" or \"next Friday\""))
+      case _ => sendJson(JsonUtil.getTextMessageJson(Messages("ar.day.ask")))
         storeUserName(user)
     }
   }
@@ -54,8 +55,7 @@ class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClie
     dates.length match {
       case 1 => respondWithAvailability(dates.head, user)
       case default =>
-        sendJson(JsonUtil.getTextMessageJson("Sorry I don't understand what day you want. You can say " +
-          "things like \"tomorrow\" or \"next Friday\""))
+        sendJson(JsonUtil.getTextMessageJson(Messages("ar.day.repeat")))
     }
   }
 
@@ -67,20 +67,21 @@ class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClie
         log.debug("Found " + times.size + " availabilities for user: " + userId)
         times.length match {
           case 0 =>
-            sendJson(JsonUtil.getTextMessageJson(s"Britt has no availability " +
-              s"on ${TimeUtils.dayFormat(futureDay)}. What other day is good for you?"))
+            sendJson(JsonUtil.getTextMessageJson(Messages("ar.day.noavail", gtfp.name, TimeUtils.dayFormat(futureDay))))
           case bunch =>
             userDAO.insertOrUpdate(Botuser(userId, ActionStates.time.toString, Some(futureDay), user.eventId, user
               .firstName, user.lastName)) onComplete {
               case Success(_) =>
-                sendJson(JsonUtil.getTextMessageJson("Britt has the following times available "
-                  + "on " + TimeUtils.dayFormat(futureDay) + ": " + getTimeRangeStrings(times) + "."))
+                sendJson(JsonUtil.getTextMessageJson(Messages("ar.day.avail", gtfp.name,
+                  TimeUtils.dayFormat(futureDay), getTimeRangeStrings(times))))
               case Failure(ex) => bigFail
             }
         }
       case Failure(ex) =>
-        log.debug(s"Could not get availability for day ${TimeUtils.dayFormat(day)}, userId $userId, message ${ex
-          .getMessage}")
+        log.debug(s"Could not get availability for day ${TimeUtils.dayFormat(day)}, userId $userId, message ${
+          ex
+            .getMessage
+        }")
     }
 
   }
@@ -95,8 +96,7 @@ class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClie
             val avails = calendarTools.matchAvailabilityForTime(time)
             avails.length match {
               case 0 =>
-                sendJson(JsonUtil.getTextMessageJson("Sorry Britt is not available during that time. Try a time " +
-                  "during one of the windows specified previously."))
+                sendJson(JsonUtil.getTextMessageJson(Messages("ar.time.noavail", gtfp.name)))
               case 1 =>
                 matchAvailability(avails.head, user)
               case bunch =>
@@ -104,8 +104,7 @@ class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClie
                 bigFail
             }
           case default =>
-            sendJson(JsonUtil.getTextMessageJson("Sorry I don't understand what day you want. You can say " +
-              "things like \"1pm\" or \"2pm\""))
+            sendJson(JsonUtil.getTextMessageJson(Messages("ar.time.repeat")))
         }
       case None =>
         log.debug(s"No Timestamp for user: $userId")
@@ -117,8 +116,8 @@ class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClie
     userDAO.insertOrUpdate(Botuser(userId, ActionStates.duration.toString,
       Some(avail.userTime), Some(avail.eventId), user.firstName, user.lastName)) onComplete {
       case Success(suc) =>
-        sendJson(JsonUtil.getTextMessageJson("Ok. How long a lesson would you like? Britt has at most "
-          + TimeUtils.getHourMinutePeriodString(avail.userTime, avail.endTime) + "."))
+        sendJson(JsonUtil.getTextMessageJson(Messages("ar.time.match", gtfp.eventNoun, gtfp.name,
+          TimeUtils.getHourMinutePeriodString(avail.userTime, avail.endTime))))
       case Failure(ex) =>
         log.error("Failed to persist user status. Error: " + ex.getMessage)
         bigFail
@@ -140,10 +139,9 @@ class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClie
                     userDAO.insertOrUpdate(Botuser(userId, ActionStates.notes.toString, Some(appt.times.start), Some(appt
                       .eventId), user.firstName, user.lastName)).onComplete {
                       case Success(suc) =>
-                        sendJson(JsonUtil.getTextMessageJson("Ok I've got you down for " +
-                          TimeUtils.dayFormat(appt.times.start) + " at " + TimeUtils.timeFormat(appt.times.start)
-                          + " until " + TimeUtils.timeFormat(appt.times.end) + ". Please enter any additional " +
-                          "information (phone number, special instructions) you would like to leave for Britt."))
+                        sendJson(JsonUtil.getTextMessageJson(Messages("ar.duration.match",
+                          TimeUtils.dayFormat(appt.times.start), TimeUtils.timeFormat(appt.times.start),
+                          TimeUtils.timeFormat(appt.times.end), gtfp.name)))
                       case Failure(ex) =>
                         log.error(s"Failed to persist user to menu action: $ex.getMessage")
                         bigFail
@@ -153,8 +151,7 @@ class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClie
                 }
               case bunch =>
                 log.debug(s"Parsed too many (or no) durations for user: $userId")
-                sendJson(JsonUtil.getTextMessageJson("Sorry I don't understand what day you want. You can say " +
-                  "things like \"1 hour\" or \"30 minutes\"."))
+                sendJson(JsonUtil.getTextMessageJson(Messages("ar.duration.repeat")))
             }
           case None =>
             log.error(s"No event id for user: $userId")
@@ -167,7 +164,8 @@ class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClie
   }
 
   private def menu(implicit userId: String) = {
-    sendJson(JsonUtil.getMenuJson(userId))
+    sendJson(JsonUtil.getMenuJson(Messages("greeting", gtfp.name, Messages("brand")), Messages("schedule"),
+      Messages("cancel"), Messages("view")))
   }
 
 
@@ -175,8 +173,7 @@ class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClie
     user.eventId match {
       case Some(eventId) =>
         calendarTools.updateEvent(eventId, text)
-        sendJson(JsonUtil.getTextMessageJson("Ok Britt will be notified of your lesson and given your notes. Have a" +
-          " great day!"))
+        sendJson(JsonUtil.getTextMessageJson(Messages("ar.notes", gtfp.name, gtfp.eventNoun)))
         resetToMenuStatus
       case None =>
         log.error(s"No event id for user: $userId")
@@ -187,7 +184,7 @@ class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClie
   private def cancel(implicit userId: String) = {
     userDAO.insertOrUpdate(Botuser(userId, ActionStates.cancelDateTime.toString)) onComplete {
       case Success(notta) =>
-        sendJson(JsonUtil.getTextMessageJson("What day and time would you like to cancel?"))
+        sendJson(JsonUtil.getTextMessageJson(Messages("ar.cancel.ask")))
       case Failure(ex) =>
         bigFail
     }
@@ -206,16 +203,15 @@ class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClie
                     calendarTools.patchAvailability(entry.times) onFailure {
                       case ex => log.error(s"Failed to patch availability for user $userId, message ${ex.getMessage}")
                     }
-                    sendJson(JsonUtil.getTextMessageJson("Ok I've canceled your appointment."))
+                    sendJson(JsonUtil.getTextMessageJson(Messages("ar.cancel.match")))
                     resetToMenuStatus
                   case Failure(f) =>
                     log.error(s"Failed to cancel appointment for user $userId, appointment $entry, message ${f.getMessage}")
                     bigFail
                 }
               case None =>
-                sendJson(JsonUtil.getTextMessageJson(s"Sorry I couldn't find anything for " +
-                  s" ${TimeUtils.dayFormat(dateTime.head)} at ${TimeUtils.timeFormat(dateTime.head)}. If you'd " +
-                  "like to see what you have scheduled use the \'View\' menu option."))
+                sendJson(JsonUtil.getTextMessageJson(Messages("ar.cancel.noappt",
+                  TimeUtils.dayFormat(dateTime.head), TimeUtils.timeFormat(dateTime.head))))
             }
           case Failure(ex) =>
             log.error(s"Failed to get appointments from Google for user $userId, message ${ex.getMessage}")
@@ -223,8 +219,7 @@ class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClie
         }
       case bunch =>
         log.debug(s"Parsed too many (or no) datetimes for cancelation userId: $userId")
-        sendJson(JsonUtil.getTextMessageJson("Sorry I don't understand. You can say things like /'tomorrow at 4 pm'/ " +
-          "or /'July 4th at 11 am/'."))
+        sendJson(JsonUtil.getTextMessageJson(Messages("ar.cancel.repeat")))
     }
   }
 
@@ -232,8 +227,7 @@ class ActionResponder (override val userDAO: BotuserDAO, override val ws: WSClie
     calendarTools.getFutureCalendarAppointments(new DateTime().plusWeeks(2), userId) onComplete {
       case Success(details) =>
         val timeStrings = getDayTimeStrings(details.map(_.times))
-        sendJson(JsonUtil.getTextMessageJson(s"Here is a list of your lessons over the next two weeks:\n" +
-          s"$timeStrings"))
+        sendJson(JsonUtil.getTextMessageJson(Messages("ar.view.match", timeStrings)))
         resetToMenuStatus
       case Failure(ex) =>
         log.error(s"Failed to get appointments from Google for user $userId, message ${ex.getMessage}")

@@ -4,18 +4,18 @@ curl -X POST -H "Content-Type: application/json" -d '{
   "call_to_actions":[
     {
       "type":"postback",
-      "title":"Schedule a Lesson",
+      "title":"Schedule",
       "payload":"schedule"
     },
     {
       "type":"postback",
-      "title":"Cancel a Lesson",
+      "title":"Cancel",
       "payload":"cancel"
     },
     {
       "type":"postback",
-      "title":"View a Scheduled Lesson",
+      "title":"View",
       "payload":"view"
     }
   ]
-}' "https://graph.facebook.com/v2.6/me/thread_settings?access_token=EAAWOb6Mv7N4BAMtRoYHBaLBMZCyZAGDWmwFZCKr1KarrJUy3ZAHmkGd1OVAjUBdJzAwbYZAyiZCFYJqjWZBLyjvJILTjXhLz95q5lGdAe1NWUcKWSixKeCNumHEAZBZAkh1EWNOjOYiiGv1jiUZCttghM0ZCF4Ppv79MVZBjibuwmFQ6wQZDZD"
+}' "https://graph.facebook.com/v2.6/me/thread_settings?access_token=EAAWOb6Mv7N4BAHm2DtLK0Lof1bzSWe05AjingXRftVZCHRK4afHOidLS8FKun10jugWrCWPoZCjnbsdKkBXHTTsI0Vt1Sn34SxmrgyQhEML72TylxrQNUyXXduitbNPUoCEeuE9D5PQODrjWNW5lVKknfukzGcJuMjoCzi3gZDZD"

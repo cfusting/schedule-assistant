@@ -3,34 +3,27 @@ package controllers
 import JsonConversions._
 import javax.inject.Inject
 
-import play.api.data.Forms._
 import akka.util.ByteString
-import com.mohiva.play.silhouette.api.actions.SecuredRequest
-import com.mohiva.play.silhouette.api.exceptions.ProviderException
 import com.mohiva.play.silhouette.api.repositories.AuthInfoRepository
-import com.mohiva.play.silhouette.api.{LoginEvent, Silhouette}
-import com.mohiva.play.silhouette.impl.providers.oauth2.{FacebookProvider, GoogleProvider}
-import com.mohiva.play.silhouette.impl.providers.{CommonSocialProfileBuilder, OAuth2Info, SocialProvider, SocialProviderRegistry}
+import com.mohiva.play.silhouette.api.Silhouette
+import com.mohiva.play.silhouette.impl.providers.SocialProviderRegistry
 import google.CalendarTools
 import models._
 import models.daos.{BotuserDAO, GoogleToFacebookPageDAO, OAuth2InfoDAO}
 import models.services.UserService
-import nlp.{DateTimeParser, MasterTime}
+import nlp.DateTimeParser
 import play.api._
-import play.api.data.Form
 import play.api.http.HttpEntity
 import play.api.libs.json._
-import play.api.libs.ws.{WSClient, WSResponse}
+import play.api.libs.ws.WSClient
 import play.api.mvc._
 
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 import play.api.data.validation.ValidationError
-import play.api.i18n.{I18nSupport, MessagesApi}
+import play.api.i18n.{I18nSupport, MessagesApi, Lang}
 import respond.{ActionResponder, TextResponder}
 import silhouette.CookieEnv
-
-import scala.util.{Failure, Success}
 
 
 class HttpServices @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configuration, sil: Silhouette[CookieEnv],
@@ -79,33 +72,37 @@ class HttpServices @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: C
     BadRequest("Malformed JSON.")
   }
 
-  private def handleJsonSuccess(valid: FMessage): Result = {
+  private def handleJsonSuccess(valid: FMessage)(implicit lang: Lang): Result = {
     valid.entry foreach {
       entry =>
         (for {
-          googleToFacebookPage <- googleToFacebookPageDAO.find(entry.id.toLong)
-          oAuth2Info <- oAuth2InfoDAO.find(googleToFacebookPage.googleLoginInfo)
+          gtfp <- googleToFacebookPageDAO.find(entry.id.toLong)
+          oAuth2Info <- oAuth2InfoDAO.find(gtfp.googleLoginInfo)
         } yield {
-          val calendarTools = new CalendarTools(conf, oAuth2Info.get.accessToken, oAuth2Info.get.refreshToken.get,
-            googleToFacebookPage.calendarId)
-          entry.messaging.foreach(
-            messaging => {
-              implicit val userId = messaging.sender
-              messaging.delivery foreach {
-                delivery
-              }
-              messaging.message foreach {
-                _.text foreach { text =>
-                  val textResponder = new TextResponder(conf, ws, botuserDAO, calendarTools,
-                    googleToFacebookPage.accessToken, masterTime)
-                  textResponder.respond(text)
+          gtfp.active match {
+            case true =>
+              val calendarTools = new CalendarTools(conf, oAuth2Info.get.accessToken, oAuth2Info.get.refreshToken.get,
+                gtfp.calendarId)
+              entry.messaging.foreach(
+                messaging => {
+                  implicit val userId = messaging.sender
+                  messaging.delivery foreach {
+                    delivery
+                  }
+                  messaging.message foreach {
+                    _.text foreach { text =>
+                      val textResponder = new TextResponder(conf, ws, botuserDAO, calendarTools,
+                        gtfp, masterTime, messagesApi)
+                      textResponder.respond(text)
+                    }
+                  }
+                  messaging.postback foreach { pb =>
+                    postback(pb, calendarTools, gtfp)
+                  }
                 }
-              }
-              messaging.postback foreach { pb =>
-                postback(pb, calendarTools, googleToFacebookPage.accessToken)
-              }
-            }
-          )
+              )
+            case false =>
+          }
         }).recover {
           case ex: Exception =>
             log.error(ex.toString)
@@ -123,11 +120,11 @@ class HttpServices @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: C
   /**
     * Handle a Facebook postback event.
     */
-  private def postback(postback: Postback, calendarTools: CalendarTools, facebookPageToken: String)(implicit sd:
-  String): Unit = {
+  private def postback(postback: Postback, calendarTools: CalendarTools, gtfp: GoogleToFacebookPage)(implicit sd:
+  String, lang: Lang): Unit = {
     log.debug("Postback")
     val user = Botuser(sd, postback.payload)
-    val ar = new ActionResponder(botuserDAO, ws, conf, masterTime, calendarTools, facebookPageToken)
+    val ar = new ActionResponder(botuserDAO, ws, conf, masterTime, calendarTools, gtfp, messagesApi)
     ar.respond(UserAction(user, ""))
   }
 

@@ -21,9 +21,8 @@ import play.api.mvc._
 
 import scala.concurrent._
 import ExecutionContext.Implicits.global
-import play.api.i18n.{I18nSupport, Messages, MessagesApi}
+import play.api.i18n.{I18nSupport, MessagesApi}
 import silhouette.CookieEnv
-import views.html.helper.checkbox
 
 class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configuration, sil: Silhouette[CookieEnv],
                        socialProviderRegistry: SocialProviderRegistry, userService: UserService,
@@ -198,7 +197,7 @@ class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configu
           }
           // Note if this data is updated the active field is NOT mutated.
           googleToFacebookPageDAO.save(GoogleToFacebookPage(loginInfo, data.pageId, accessToken, true,
-            data.calendarId, data.name, data.eventNoun))
+            data.calendarId, data.name, data.eventNoun.toLowerCase))
           Redirect(routes.WebApp.home())
         }
       }
