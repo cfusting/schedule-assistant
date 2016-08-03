@@ -66,10 +66,12 @@ class CalendarTools(conf: Configuration, accessToken: String, refreshToken: Stri
     TimeRange(day, dayEnd)
   }
 
-  def matchAvailabilityForTime(time: DateTime)(implicit userId: String): Seq[Availability] = {
-    getAvailableEventsForDay(time.withTimeAtStartOfDay)
-      .filter(isTimeInWindow(time, _))
-      .map(x => Availability(userId, x.getId, x.getStart.getDateTime, x.getEnd.getDateTime, time))
+  def matchAvailabilityForTime(times: Seq[DateTime])(implicit userId: String): Seq[Availability] = {
+    val events = getAvailableEventsForDay(times.head.withTimeAtStartOfDay)
+      times.map(time =>
+        events.filter(isTimeInWindow(time, _))
+          .map(x => Availability(userId, x.getId, x.getStart.getDateTime, x.getEnd.getDateTime, time))
+      ).flatten
   }
 
   private def isTimeInWindow(time: DateTime, event: Event): Boolean = {

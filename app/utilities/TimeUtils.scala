@@ -44,14 +44,6 @@ object TimeUtils {
 
   def ts(str: String) = new Timestamp(tsFormatter.parse(str).getTime)
 
-  def matchTime(dt: DateTime, range: Seq[TimeRange]): Option[DateTime] = {
-    Logger.info("Requested datetime: " + isoFormat(dt))
-    range.find { x =>
-      Logger.info("Available start datetime: " + isoFormat(x.start))
-      x.start == dt
-    }.map(_.start)
-  }
-
   def dateTimeForDayAndTime(day: DateTime, time: DateTime): DateTime = {
     day.withTime(time.toLocalTime)
   }
@@ -87,7 +79,7 @@ object TimeUtils {
 
   def getTimeRangeStrings(times: Seq[TimeRange]): String = {
     times.map { t =>
-      timeFormat(t.start) + " to " + timeFormat(t.end)
+      "\n" + timeFormat(t.start) + " to " + timeFormat(t.end)
     } mkString ", "
   }
 
@@ -99,14 +91,22 @@ object TimeUtils {
   }
 
   def getReadableDurationString(durationString: String): String = {
-    val hoursAndMins = "([0-9])(\\.[0-9]+) hour[s]?".r
-    val minsOnly = "[0-9]?(\\.[0-9]+) hour[s]?".r
+    val hoursAndMins = """(?i).*([0-9])(\.[0-9]+) {0,4}hour(?:s)?.*""".r
+    val minsOnly = """(?i).*[0-9]?(\.[0-9]+) hour(?:s)?.*""".r
     durationString match {
       case hoursAndMins(hours: String, mins: String) =>
         s"${hours.toDouble} hours and ${Math.round(mins.toDouble * 60)} minutes"
       case minsOnly(mins: String) =>
         s"${Math.round(mins.toDouble * 60)} minutes"
       case _ => durationString
+    }
+  }
+
+  def getReadableTimeString(timeString: String): String = {
+    val time = """(?i)[^:]*(\d(?:\:\d{2})? {0,4}(?:am|pm)?)""".r
+    time.findFirstIn(timeString) match {
+      case Some(t) => s"${t.trim} am ${t.trim} pm"
+      case None => timeString
     }
   }
 }

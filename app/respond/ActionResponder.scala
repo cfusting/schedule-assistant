@@ -89,11 +89,12 @@ class ActionResponder(override val userDAO: BotuserDAO, override val ws: WSClien
   private def time(user: Botuser, text: String)(implicit userId: String, log: Logger) = {
     user.timestamp match {
       case Some(day) =>
-        val times = masterTime.getDateTimes(text)
+        val timeString = TimeUtils.getReadableTimeString(text)
+        val times = masterTime.getDateTimes(timeString)
         times.length match {
-          case 1 =>
-            val time = times.head.withDate(day.toLocalDate)
-            val avails = calendarTools.matchAvailabilityForTime(time)
+          case t if t >0 && t <= 2 =>
+            val properTimes = times.map(_.withDate(day.toLocalDate))
+            val avails = calendarTools.matchAvailabilityForTime(properTimes)
             avails.length match {
               case 0 =>
                 sendJson(JsonUtil.getTextMessageJson(Messages("ar.time.noavail", gtfp.name)))
@@ -101,7 +102,7 @@ class ActionResponder(override val userDAO: BotuserDAO, override val ws: WSClien
                 matchAvailability(avails.head, user)
               case bunch =>
                 log.error(s"Found multiple (or zero) availabilities $avails.length")
-                bigFail
+                sendJson(JsonUtil.getTextMessageJson(Messages("ar.time.repeat")))
             }
           case default =>
             sendJson(JsonUtil.getTextMessageJson(Messages("ar.time.repeat")))
@@ -228,7 +229,11 @@ class ActionResponder(override val userDAO: BotuserDAO, override val ws: WSClien
     calendarTools.getFutureCalendarAppointments(new DateTime().plusWeeks(2), userId) onComplete {
       case Success(details) =>
         val timeStrings = getDayTimeStrings(details.map(_.times))
-        sendJson(JsonUtil.getTextMessageJson(Messages("ar.view.match", timeStrings)))
+        if (timeStrings.isEmpty) {
+          sendJson(JsonUtil.getTextMessageJson(Messages("ar.view.none", gtfp.eventNoun)))
+        } else {
+          sendJson(JsonUtil.getTextMessageJson(Messages("ar.view.match", gtfp.eventNoun, timeStrings)))
+        }
         resetToMenuStatus
       case Failure(ex) =>
         log.error(s"Failed to get appointments from Google for user $userId, message ${ex.getMessage}")
