@@ -105,7 +105,12 @@ object TimeUtils {
   def getReadableTimeString(timeString: String): String = {
     val time = """(?i)[^:]*(\d(?:\:\d{2})? {0,4}(?:am|pm)?)""".r
     time.findFirstIn(timeString) match {
-      case Some(t) => s"${t.trim} am ${t.trim} pm"
+      case Some(t) =>
+        if (t.toLowerCase.contains("am") || t.toLowerCase.contains("pm")) {
+          t.trim
+        } else {
+          s"${t.trim} am ${t.trim} pm"
+        }
       case None => timeString
     }
   }

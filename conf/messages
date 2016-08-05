@@ -21,19 +21,18 @@ user.options.name.placeholder=Chris, Tennis with Britt, Bill''s Bricks, ...
 user.options.name.helptext=This is the name {0} will refer to. Example: "Hi I''m Britt''s {0}"
 user.options.eventnoun.label=Event Noun
 user.options.eventnoun.placeholder=appointment, meeting, lesson, ...
-user.options.eventnoun.helptext=The type of event {0} helps you schedule. Example: "I can help you schedule a meeting \
-with..."
+user.options.eventnoun.helptext=The type of event {0} helps you schedule. Example: "I can help you schedule a meeting\
+   with..."
 user.options.button=Save Options
 user.options.saved=Options Saved.
 nav.home=Home
 nav.contact=Contact
 nav.options=Options
-greeting=Hi I''m {0}''s {1}. In the future you can reach this menu by clicking on the three blue bars on the bottom  \
+greeting=Hi! I''m {0}''s {1}. In the future you can reach this menu by clicking on the three blue bars on the bottom \
 left of the chat box. Click "Schedule" to get started.
 schedule=Schedule
 cancel=Cancel
 view=View
-tr.help=Hi! You can use the menu at the bottom left of your chat box to get started.
 ar.day.ask=What day are you interested in? You can say things like "tomorrow" or "next Friday".
 ar.day.repeat=Sorry I don't understand what day you want. You can say things like "tomorrow" or "next Friday".
 ar.day.noavail=Sorry {0} has no availability on {1}. What other day is good for you?

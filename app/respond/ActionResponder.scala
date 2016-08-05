@@ -26,7 +26,7 @@ class ActionResponder(override val userDAO: BotuserDAO, override val ws: WSClien
   def respond(userAction: UserAction): Unit = {
     implicit val userId = userAction.user.id
     implicit val log = Logger(this.getClass + " Action: " + userAction.user.action)
-    log.debug("User: " + userId + " with Action: " + userAction.user.action)
+    log.info("User: " + userId + " Text: " + userAction.text)
 
     ActionStates.withName(userAction.user.action) match {
       case ActionStates.schedule => schedule

@@ -23,7 +23,7 @@ class TextResponder @Inject()(override val conf: Configuration, override val ws:
   override val log = Logger(this.getClass)
 
   def respond(text: String)(implicit userId: String): Unit = {
-    log.debug("Text message received from: " + userId)
+    log.info("User: " + userId + " Text: " + text)
     text match {
       case "menu" | "help" =>
         sendJson(JsonUtil.getMenuJson(Messages("greeting", gtfp.name, Messages("brand")), Messages("schedule"),
