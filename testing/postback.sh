@@ -14,8 +14,10 @@ curl -k -X POST -H "Content-Type: application/json" -d '{
           },
           "timestamp":1458692752478,
           "postback":{
-          "payload":"schedule"
-          }
+            "payload": {
+                "action": "schedule"
+                }
+            }
         }
       ]
     }

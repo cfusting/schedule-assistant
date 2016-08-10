@@ -21,9 +21,12 @@ import play.api.mvc._
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 import play.api.data.validation.ValidationError
-import play.api.i18n.{I18nSupport, MessagesApi, Lang}
+import play.api.i18n.{I18nSupport, Lang, MessagesApi}
 import respond.{ActionResponder, TextResponder}
 import silhouette.CookieEnv
+
+import scala.util.control.NonFatal
+import scala.util.{Failure, Success}
 
 
 class HttpServices @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configuration, sil: Silhouette[CookieEnv],
@@ -39,7 +42,7 @@ class HttpServices @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: C
     */
   def webhook = Action {
     implicit request =>
-      log.info("request: " + request.body)
+      log.debug("request: " + request.body)
       val challenge = request.getQueryString("hub.challenge") map {
         _.trim
       } getOrElse ""
@@ -113,7 +116,6 @@ class HttpServices @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: C
   }
 
   def delivery(delivery: Delivery) = {
-    log.debug("Provider verified delivery of messages since: " + delivery.watermark.toString)
     Ok("Delivery confirmation confirmed.")
   }
 
@@ -122,10 +124,21 @@ class HttpServices @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: C
     */
   private def postback(postback: Postback, calendarTools: CalendarTools, gtfp: GoogleToFacebookPage)(implicit sd:
   String, lang: Lang): Unit = {
-    log.debug("Postback")
-    val user = Botuser(sd, postback.payload)
-    val ar = new ActionResponder(botuserDAO, ws, conf, masterTime, calendarTools, gtfp, messagesApi)
-    ar.respond(UserAction(user, ""))
+    Json.parse(postback.payload.replaceAll("""\\""", "")).validate[BotPayload].fold(
+      invalid => {
+        log.error(s"Error parsing payload ${invalid.toString()}")
+        BadRequest("Bad Json! Bad!")
+      },
+      valid => {
+        for {
+          maybeUser <- botuserDAO.getUser(sd)
+          user <- Future(maybeUser.get)
+        } yield {
+          val ar = new ActionResponder(botuserDAO, ws, conf, masterTime, calendarTools, gtfp, messagesApi)
+          ar.respond(UserAction(user.copy(action = valid.action), "", valid.returnToAction))
+        }
+      }
+    )
   }
 
 }

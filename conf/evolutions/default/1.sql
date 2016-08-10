@@ -3,10 +3,12 @@
 create table bot_users (
   id text NOT NULL PRIMARY KEY,
   action text NOT NULL,
-  scheduled timestamptz,
+  starttime timestamptz,
   eventid text,
   firstname text,
-  lastname text
+  lastname text,
+  message text,
+  endtime timestamptz
 );
 
 

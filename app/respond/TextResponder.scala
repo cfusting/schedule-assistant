@@ -12,6 +12,8 @@ import play.api.libs.ws.WSClient
 import utilities.JsonUtil
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 class TextResponder @Inject()(override val conf: Configuration, override val ws: WSClient,
@@ -21,29 +23,29 @@ class TextResponder @Inject()(override val conf: Configuration, override val ws:
   extends Responder {
 
   override val log = Logger(this.getClass)
+  override var prefix = ""
 
   def respond(text: String)(implicit userId: String): Unit = {
-    log.info("User: " + userId + " Text: " + text)
+    prefix = s"||$userId||$text||"
+    log.info(prefix)
     text match {
       case "menu" | "help" =>
         sendJson(JsonUtil.getMenuJson(Messages("greeting", gtfp.name, Messages("brand")), Messages("schedule"),
           Messages("cancel"), Messages("view")))
         resetToMenuStatus
       case other =>
-        userDAO.getUser(userId) onComplete {
-          case Success(suc) =>
-            suc match {
-              case Some(user) =>
-                val ar = new ActionResponder(userDAO, ws, conf, masterTime, calendarTools, gtfp, messagesApi)
-                ar.respond(UserAction(user, text))
-              case None => resetToMenuStatus
-            }
-          case Failure(ex) =>
-            log.error("DB failure for user with id: " + userId + ". Message: " + ex.getMessage)
+        (for {
+          maybeUser <- userDAO.getUser(userId)
+          user <- Future(maybeUser.get)
+        } yield {
+          val ar = new ActionResponder(userDAO, ws, conf, masterTime, calendarTools, gtfp, messagesApi)
+          ar.respond(UserAction(user, text, None))
+        }).recover {
+          case NonFatal(ex) =>
+            log.error(s"$prefix${ex.toString}")
             bigFail
         }
     }
-
   }
 
 }

@@ -18,6 +18,9 @@ case class Attachment(typ: String, payloadUrl: String)
 case class Delivery(mids: Option[Seq[String]], watermark: Double, seq: Int)
 case class Postback(payload: String)
 
+// Bidirectional
+case class BotPayload(action: String, returnToAction: Option[String])
+
 // Outgoing
 case class Outgoing(recipient: Recipient, message: OutMessage)
 case class Recipient(id: String)
@@ -37,15 +40,16 @@ case class UserOptionsForm(pageId: Long, calendarId: String, name: String,
 case class HomeForm(active: Boolean = false)
 
 // Tables
-case class Botuser(id: String, action: String, timestamp: Option[Timestamp] = None,
+case class Botuser(id: String, action: String, startTime: Option[Timestamp] = None,
                    eventId: Option[String] = None, firstName: Option[String] = None,
-                   lastName: Option[String] = None)
+                   lastName: Option[String] = None, message: Option[String] = None,
+                   endTime: Option[Timestamp] = None)
 
 case class GoogleToFacebookPage(googleLoginInfo: LoginInfo, facebookPageId: Long, accessToken: String,
                                 active: Boolean, calendarId: String, name: String, eventNoun: String)
 
 // Actions
-case class UserAction(user: Botuser, text: String)
+case class UserAction(user: Botuser, text: String, returnToAction: Option[String])
 
 // Time Stuff
 case class TimeRange(start: DateTime, end: DateTime)

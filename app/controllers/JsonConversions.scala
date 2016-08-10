@@ -7,7 +7,12 @@ import play.api.libs.functional.syntax._
 
 object JsonConversions {
 
-    implicit val postbackWrites = new Writes[Postback] {
+  implicit val botPayloadWrites: Writes[BotPayload] = (
+    (JsPath \ "action").write[String] and
+      (JsPath \ "returnToAction").writeNullable[String]
+  )(unlift(BotPayload.unapply _))
+
+  implicit val postbackWrites = new Writes[Postback] {
     def writes(postback: Postback) = Json.obj(
       "payload" -> postback.payload
     )
@@ -51,7 +56,13 @@ object JsonConversions {
     (JsPath \ "entry").write[Seq[Entry]]
   )(unlift(FMessage.unapply _))
 
-  implicit val postbackReads: Reads[Postback] = (JsPath \ "payload").read[String].map(Postback.apply)
+  implicit val botPayloadReads: Reads[BotPayload] = (
+    (JsPath \ "action").read[String] and
+      (JsPath \ "returnToAction").readNullable[String]
+    )(BotPayload.apply _)
+
+  implicit val postbackReads: Reads[Postback] =
+    (JsPath \ "payload").read[String].map(Postback.apply)
 
   implicit val deliveryReads: Reads[Delivery] = (
     (JsPath \ "mids").readNullable[Seq[String]] and
@@ -98,7 +109,8 @@ object JsonConversions {
       (JsPath \ "perms").read[Seq[String]]
     )(FacebookPage.apply _)
 
-  implicit val graphDataReads: Reads[FacebookPageSeq] = (JsPath \ "data").read[Seq[FacebookPage]].map(FacebookPageSeq.apply)
+  implicit val graphDataReads: Reads[FacebookPageSeq] =
+    (JsPath \ "data").read[Seq[FacebookPage]].map(FacebookPageSeq.apply)
 
   implicit val recipientWrites = new Writes[Recipient] {
     def writes(recipient: Recipient) = Json.obj(

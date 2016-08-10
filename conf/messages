@@ -37,19 +37,26 @@ ar.day.ask=What day are you interested in? You can say things like "tomorrow" or
 ar.day.repeat=Sorry I don't understand what day you want. You can say things like "tomorrow" or "next Friday".
 ar.day.noavail=Sorry {0} has no availability on {1}. What other day is good for you?
 ar.day.avail={0} has the following times available on {1}:{2}.\nWhat time is good for you?
+ar.day.wrong=Wrong day? Tap here!
 ar.time.noavail=Sorry {0} is not available during that time. Try a time during one of the windows specified previously.
 ar.time.repeat=Sorry I don't understand what day you want. You can say things like "1 pm" or "2 pm"
-ar.time.match=Ok. How long a {0} would you like? {1} has at most {2}"
-ar.duration.repeat=Sorry I don't understand what day you want. You can say things like "1 hour" or "30 minutes".
+ar.time.match=Ok {0}. How long a {1} would you like? {2} has at most {3}"
+ar.time.wrong=Wrong time? Tap here!
 ar.duration.match=Ok I''ve got you down for {0} from {1} until {2}. Please enter your contact details and any \
 additional information for {3}.
+ar.duration.repeat=Sorry I don't understand how much time you want. You can say things like "1 hour" or "30 minutes".
 ar.duration.schedule.eventname={0} with {1}.
-ar.notes=Ok {0} will be notified of your {1} and given your notes. Have a great day!
+ar.duration.wrong=Wrong duration? Tap Here!
+ar.notes.confirm=Ok {0} will be notified of your {1} and given your contact and other information. Have a great day!
 ar.cancel.ask=What day and time would you like to cancel? You can say things like "tomorrow at 1 pm".
 ar.cancel.repeat=Sorry I don't understand. You can say things like "tomorrow at 4 pm" or "July 4th at 11 am"
 ar.cancel.noappt=Sorry I couldn''t find anything for {0} at {1}. If you''d like to see what you have scheduled use the \
 "View Schedule"  menu option.
 ar.cancel.match=Ok I''ve canceled your appointment.
-ar.view.match=Here is a list of your {0}''s over the next two weeks:\n{1}
+ar.view.match=Here is a list of your {0}''s: \n{1}
 ar.view.none=You have no {0}''s during the next two weeks.
+ar.notWhatIWanted.sorry=Sorry! Try saying the {0} you want differently.
+ar.day=day
+ar.time=time
+ar.duration={0} duration
 

@@ -3,10 +3,11 @@ package nlp
 import edu.stanford.nlp.ling.CoreAnnotations
 import edu.stanford.nlp.pipeline._
 import edu.stanford.nlp.time._
-import org.joda.time.{DateTime, Duration, Period}
+import org.joda.time.{DateTime, Duration}
 import java.util.Properties
 
 import com.google.inject.Singleton
+import edu.stanford.nlp.time.SUTime.TimexType
 import edu.stanford.nlp.util.CoreMap
 
 import scala.collection.JavaConversions._
@@ -18,9 +19,6 @@ import utilities.TimeUtils
 class MasterTime extends DateTimeParser {
 
   val log = Logger(this.getClass)
-
-  val duration = "DURATION"
-  val time = "Temporal"
 
   val props = new Properties
   props.put("annotators", "tokenize, ssplit, pos, lemma, ner, parse, dcoref")
@@ -37,27 +35,41 @@ class MasterTime extends DateTimeParser {
     ano.get(classOf[TimeAnnotations.TimexAnnotations])
   }
 
-  def getDateTimes(text: String): Seq[DateTime] = {
+  private def getDateTimes(text: String, timeType: TimexType) = {
     parse(text).filter(timexAnn => {
-      val timeExpr: TimeExpression = timexAnn.get(classOf[TimeExpression.Annotation])
-      timeExpr.getValue.getType == time
+      timexAnn.get(classOf[TimeExpression.Annotation]).getTemporal.getTimexType == timeType
     }).map(timexAnn => {
-      val timeExpr: TimeExpression = timexAnn.get(classOf[TimeExpression.Annotation])
-      val temporal = timeExpr.getTemporal.getTimexValue
-      val nextTime = new DateTime(temporal)
-      log.debug("Parsed datetime: " + fmt.print(nextTime))
-      nextTime
+      val dateTime = new DateTime(timexAnn.get(classOf[TimeExpression.Annotation]).getTemporal.getTimexValue)
+      log.debug(s"Parsed: ${fmt.print(dateTime)} from: $text")
+      dateTime
     })
+  }
+
+  def getDatetimes(text: String) = {
+    parse(text).filter(timexAnn => {
+      timexAnn.get(classOf[TimeExpression.Annotation]).getTemporal.getTimexType == TimexType.TIME ||
+      timexAnn.get(classOf[TimeExpression.Annotation]).getTemporal.getTimexType == TimexType.DATE
+    }).map(timexAnn => {
+      val dateTime = new DateTime(timexAnn.get(classOf[TimeExpression.Annotation]).getTemporal.getTimexValue)
+      log.debug(s"Parsed: ${fmt.print(dateTime)} from: $text")
+      dateTime
+    })
+  }
+
+  def getTimes(text: String): Seq[DateTime] = {
+    getDateTimes(text, TimexType.TIME)
+  }
+
+  def getDates(text: String): Seq[DateTime] = {
+    getDateTimes(text, TimexType.DATE)
   }
 
   def getDurations(text: String): Seq[Duration] = {
     parse(text).filter(timexAnn => {
-      val timeExpr: TimeExpression = timexAnn.get(classOf[TimeExpression.Annotation])
-      timeExpr.getValue.getType == duration
+      timexAnn.get(classOf[TimeExpression.Annotation]).getTemporal.getTimexType == TimexType.DURATION
     }).map(timexAnn => {
-      val timeExpr: TimeExpression = timexAnn.get(classOf[TimeExpression.Annotation])
-      val duration = timeExpr.getTemporal.getDuration.getJodaTimeDuration
-      log.debug("Parsed period: " + TimeUtils.getHourMinutePeriodFormatter.print(duration.toPeriod))
+      val duration = timexAnn.get(classOf[TimeExpression.Annotation]).getTemporal.getDuration.getJodaTimeDuration
+      log.debug(s"Parsed: ${TimeUtils.getHourMinutePeriodFormatter.print(duration.toPeriod)} from text: $text")
       duration
     })
   }

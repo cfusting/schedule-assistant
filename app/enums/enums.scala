@@ -7,10 +7,10 @@ object ActionStates extends Enumeration {
   val schedule = Value
   // Has been prompted to select a day but has not yet
   val day = Value
-  // Has been prompted to select a duration but has not yet
-  val duration = Value
   // Has been prompted to select a time but has not yet
   val time = Value
+  // Has been prompted to select a duration but has not yet
+  val duration = Value
   // Has been prompted to enter notes and contact info but has not yet
   val notes = Value
   // Clicked the cancel button
@@ -19,4 +19,13 @@ object ActionStates extends Enumeration {
   val cancelDateTime = Value
   // Clicked the view button
   val view = Value
+  // Clicked the "not what I wanted" button during scheduling
+  val notWhatIWanted = Value
+}
+
+object DataLogs extends Enumeration {
+  // Parsed too many or no durations from text
+  val durationsData = Value
+  // Parsed the wrong thing according to the user
+  val notWhatIWantedData = Value
 }

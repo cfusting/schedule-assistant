@@ -24,9 +24,10 @@ trait Responder extends I18nSupport {
   val calendarTools: CalendarTools
   val messagesApi: MessagesApi
   implicit val lang: Lang
+  var prefix: String
 
   def bigFail(implicit userId: String) = {
-    log.error(s"Big Fail. Sending user $userId back to menu")
+    log.info(s"$prefix||reset to menu.")
     userDAO.insertOrUpdate(Botuser(userId, ActionStates.menu.toString))
     sendJson(JsonUtil.getTextMessageJson("Dang! Something has gone wrong. Let's start over."))
     sendJson(JsonUtil.getMenuJson(Messages("greeting", gtfp.name, Messages("brand")), Messages("schedule"),
@@ -39,16 +40,14 @@ trait Responder extends I18nSupport {
       .post(json)
   }
 
-  def storeUserName(user: Botuser)(implicit userId: String) = {
-    ws.url(getConf("profile.url") + userId)
-      .withQueryString("access_token" -> gtfp.accessToken)
-      .get
-      .onSuccess {
-        case result =>
-          val firstName = (result.json \ "first_name").get.as[String]
-          val lastName = (result.json \ "last_name").get.as[String]
-          userDAO.updateName(firstName, lastName)
-      }
+  def storeUserName(user: Botuser)(implicit userId: String): Future[Unit] = {
+    for {
+      result <- ws.url(getConf("profile.url") + userId).withQueryString("access_token" -> gtfp.accessToken).get
+    } yield {
+        val firstName = (result.json \ "first_name").get.as[String]
+        val lastName = (result.json \ "last_name").get.as[String]
+        userDAO.updateName(firstName, lastName)
+    }
   }
 
   def getConf(prop: String) = conf.underlying.getString(prop)

@@ -83,21 +83,14 @@ class CalendarTools(conf: Configuration, accessToken: String, refreshToken: Stri
     * Schedule an appointment.
     *
     * Ensures the appointment falls within the availability window.
-    *
-    * @param appointmentStartTime
-    * @param duration
-    * @param eventId
-    * @param eventName
-    * @return
     */
-  def scheduleTime(appointmentStartTime: DateTime, duration: Duration, eventId: String, eventName: String,
-                   userId: String): Future[Appointment] = {
+  def scheduleTime(appointmentStartTime: DateTime, appointmentEndTime: DateTime, eventId: String, eventName: String,
+                   userId: String, notes: String): Future[Appointment] = {
     Future {
-      val appointmentEndTime = appointmentStartTime.withDurationAdded(duration.getMillis, 1)
       val event = service.events.get(calendar, eventId).execute
       if (isTimeInWindow(appointmentStartTime, event) && isTimeInWindow(appointmentEndTime, event)) {
         service.events.delete(calendar, eventId).execute
-        val events = partitionAvailability(event, appointmentStartTime, appointmentEndTime, eventName, userId)
+        val events = partitionAvailability(event, appointmentStartTime, appointmentEndTime, eventName, userId, notes)
         val apt = events map { x =>
           service.events.insert(calendar, x).execute
         }
@@ -119,12 +112,14 @@ class CalendarTools(conf: Configuration, accessToken: String, refreshToken: Stri
     * @return
     */
   private def partitionAvailability(availability: Event, appointmentStartTime: DateTime,
-                                    appointmentEndTime: DateTime, eventName: String, userId: String): Seq[Event] = {
+                                    appointmentEndTime: DateTime, eventName: String, userId: String,
+                                    notes: String): Seq[Event] = {
     var events = List[Event]()
     val appointment = new Event()
       .setSummary(eventName)
       .setStart(new EventDateTime().setDateTime(appointmentStartTime))
       .setEnd(new EventDateTime().setDateTime(appointmentEndTime))
+      .setDescription(notes)
       .setExtendedProperties(new ExtendedProperties().setShared(Map(userIdKey -> userId)))
     events = appointment :: events
     if (!appointmentStartTime.isEqual(availability.getStart.getDateTime)) {
@@ -154,12 +149,11 @@ class CalendarTools(conf: Configuration, accessToken: String, refreshToken: Stri
     }
   }
 
-  def getFutureCalendarAppointments(endTime: DateTime, userId: String): Future[Seq[Appointment]] = {
+  def getFutureCalendarAppointments(userId: String): Future[Seq[Appointment]] = {
     Future[Seq[Appointment]] {
       val now = new DateTime()
       val events = service.events.list(calendar)
         .setTimeMin(now)
-        .setTimeMax(endTime)
         .setOrderBy("startTime")
         .setSingleEvents(true)
         .execute
@@ -180,7 +174,6 @@ class CalendarTools(conf: Configuration, accessToken: String, refreshToken: Stri
   def cancelAppointment(apt: Appointment)(implicit userId: String): Future[Unit] = {
     Future[Unit] {
       service.events.delete(calendar, apt.eventId).execute
-      Unit
     }
   }
 
