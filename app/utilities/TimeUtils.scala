@@ -34,6 +34,8 @@ object TimeUtils {
 
   def dayFormat(dt: DateTime) = DateTimeFormat.forPattern("EEEEE MMMM d").print(dt)
 
+  def dateFormat(dt: DateTime) = DateTimeFormat.forPattern("yyyy-MM-dd")
+
   def timeFormat(dt: DateTime) = DateTimeFormat.forPattern("h:mm a").print(dt)
 
   def dayTimeFormat(dt: DateTime) = s"${dayFormat(dt)} ${timeFormat(dt)}"

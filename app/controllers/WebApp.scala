@@ -169,7 +169,6 @@ class WebApp @Inject()(val messagesApi: MessagesApi, ws: WSClient, conf: Configu
     * page refresh token is stored.
     */
   def postOptions = sil.SecuredAction.async { implicit request =>
-    log.info(request.request.body.toString)
     optionsForm.bindFromRequest.fold(
       formWithErrors => {
         for {

@@ -11,7 +11,7 @@ import edu.stanford.nlp.time.SUTime.TimexType
 import edu.stanford.nlp.util.CoreMap
 
 import scala.collection.JavaConversions._
-import org.joda.time.format.ISODateTimeFormat
+import org.joda.time.format.{DateTimeFormat, ISODateTimeFormat}
 import play.api.Logger
 import utilities.TimeUtils
 
@@ -25,7 +25,7 @@ class MasterTime extends DateTimeParser {
   val pipe = new StanfordCoreNLP(props)
   val timeAnnotator = new TimeAnnotator
   pipe.addAnnotator(timeAnnotator)
-  val fmt = ISODateTimeFormat.dateTime
+  val fmt = DateTimeFormat.forPattern("yyyy-MM-dd")
 
   private def parse(text: String): Seq[CoreMap] = {
     val ano = new Annotation(text)

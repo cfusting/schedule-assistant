@@ -47,7 +47,9 @@ additional information for {3}.
 ar.duration.repeat=Sorry I don't understand how much time you want. You can say things like "1 hour" or "30 minutes".
 ar.duration.schedule.eventname={0} with {1}.
 ar.duration.wrong=Wrong duration? Tap Here!
+ar.duration.tooLong=Sorry {0} doesn't have that much time. Try something shorter.
 ar.notes.confirm=Ok {0} will be notified of your {1} and given your contact and other information. Have a great day!
+ar.notes.noMatch=Sorry that time is no longer available. Let's start over.
 ar.cancel.ask=What day and time would you like to cancel? You can say things like "tomorrow at 1 pm".
 ar.cancel.repeat=Sorry I don't understand. You can say things like "tomorrow at 4 pm" or "July 4th at 11 am"
 ar.cancel.noappt=Sorry I couldn''t find anything for {0} at {1}. If you''d like to see what you have scheduled use the \

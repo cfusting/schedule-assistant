@@ -2,7 +2,7 @@ package respond
 
 import models.daos.BotuserDAO
 import enums.{ActionStates, DataLogs}
-import google.CalendarTools
+import google.{CalendarException, CalendarTools}
 import models._
 import nlp.DateTimeParser
 import org.joda.time.DateTime
@@ -62,7 +62,7 @@ class ActionResponder(override val userDAO: BotuserDAO, override val ws: WSClien
   }
 
   private def day(user: Botuser, text: String)(implicit userId: String) = {
-    val dates = masterTime.getDatetimes(text)
+    val dates = masterTime.getDates(text)
     dates.length match {
       case 1 =>
         respondWithAvailability(dates.head, user, text)
@@ -144,18 +144,22 @@ class ActionResponder(override val userDAO: BotuserDAO, override val ws: WSClien
     times.length match {
       case t if t <= 2 && t > 0 =>
         val duration = times.reduceLeft(_.plus(_))
-        val endTime = user.startTime.get.withDurationAdded(duration, 1)
         (for {
+          startTime <- Future(user.startTime.get)
+          eventId <- Future(user.eventId.get)
+          proposedEndTime = startTime.withDurationAdded(duration, 1)
+          endTime <- calendarTools.matchDuration(startTime, proposedEndTime, eventId)
           _ <- userDAO.insertOrUpdate(user.copy(action = ActionStates.notes.toString, endTime = Some(endTime),
             message = Some(text)))
-          startTime <- Future(user.startTime.get)
         } yield {
           sendJson(JsonUtil.getTextMessageWithNotWhatIWantedJson(Messages("ar.duration.match",
             TimeUtils.dayFormat(startTime), TimeUtils.timeFormat(startTime),
             TimeUtils.timeFormat(endTime), gtfp.name), Messages("ar.duration.wrong"),
             BotPayload(ActionStates.notWhatIWanted.toString, Some(ActionStates.time.toString))))
         }).recover {
-          case ex: Exception =>
+          case ex: CalendarException =>
+            sendJson(JsonUtil.getTextMessageJson(Messages("ar.duration.tooLong", gtfp.name)))
+          case NonFatal(ex) =>
             log.error(s"$prefix||${ex.toString}")
             bigFail
         }
@@ -175,7 +179,12 @@ class ActionResponder(override val userDAO: BotuserDAO, override val ws: WSClien
       sendJson(JsonUtil.getTextMessageJson(Messages("ar.notes.confirm", gtfp.name, gtfp.eventNoun)))
       resetToMenuStatus
     }).recover {
-      case ex: Exception =>
+      case ex: CalendarException =>
+        sendJson(JsonUtil.getTextMessageJson(Messages("ar.notes.noMatch")))
+        resetToMenuStatus
+        sendJson(JsonUtil.getMenuJson(Messages("greeting", gtfp.name, Messages("brand")), Messages("schedule"),
+          Messages("cancel"), Messages("view")))
+      case NonFatal(ex) =>
         log.error(s"$prefix||${ex.toString}")
         bigFail
     }
