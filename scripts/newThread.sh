@@ -1,9 +1,9 @@
 curl -X POST -H "Content-Type: application/json" -d '{
-  "setting_type" : "call_to_actions",
-  "thread_state" : "new_thread",
+  "setting_type":"call_to_actions",
+  "thread_state":"new_thread",
   "call_to_actions":[
     {
-      "payload":"menu"
+      "payload":"{\"action\":\"menu\"}"
     }
-    ]
-}' "https://graph.facebook.com/v2.6/me/thread_settings?access_token=EAAWOb6Mv7N4BAMtRoYHBaLBMZCyZAGDWmwFZCKr1KarrJUy3ZAHmkGd1OVAjUBdJzAwbYZAyiZCFYJqjWZBLyjvJILTjXhLz95q5lGdAe1NWUcKWSixKeCNumHEAZBZAkh1EWNOjOYiiGv1jiUZCttghM0ZCF4Ppv79MVZBjibuwmFQ6wQZDZD"
+  ]
+}' "https://graph.facebook.com/v2.6/me/thread_settings?access_token=EAAWOb6Mv7N4BAC5ZAPc335ZB2MZAIS9HFjCZBgkdT4iYzutr7Vx4reFz9uelIZAJnuCuXmXbKJNlxNCZB7blIn1BffjJVVsu7P1es4YLGyQqZBhZCq7KOd49DJHS3ZBqt2YCUMKorsAUkTzH6YgRqu7EntCAMCzn85beWkcBU3HjxFwZDZD"
