@@ -29,4 +29,4 @@ curl -k -X POST -H "Content-Type: application/json" -d '{
       ]
     }
   ]
-}' --include "http://localhost:9000/webhook"
+}' --include "https://localhost:9443/webhook"
